@@ -1,0 +1,18 @@
+{
+  "name": "luki-management",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LUKI MANAGEMENT - project management with auth, chat, PDF reports and Telegram reminders",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "seed": "node --disable-warning=ExperimentalWarning server/seed.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "nodemailer": "^10.6.0",
+    "pdfkit": "^0.17.2"
+  }
+}

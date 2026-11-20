@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="id" data-accent="ocean">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1f5c">
+<meta name="description" content="LUKI MANAGEMENT — kelola project tim dan kehidupan pribadi (keuangan, catatan, tugas, wishlist, travel) dengan pengingat Telegram.">
+<title>LUKI MANAGEMENT — Kerja tim & hidup pribadi, satu tempat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="boot">
+
+<!-- ================= LANDING ================= -->
+<div id="auth">
+  <header class="lp-h">
+    <a class="a-brand" href="#top" aria-label="LUKI MANAGEMENT"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v13a3 3 0 0 0 3 3h6"/><path d="M13 9l3-3 3 3"/></svg></span><b>LUKI<small>MANAGEMENT</small></b></a>
+    <nav class="lp-nav" id="lpNav"><a href="#fitur">Fitur</a><a href="#pribadi">Pribadi</a><a href="#telegram">Telegram</a><a href="#faq">FAQ</a>
+      <span class="lp-cta"><button class="btn ghost" data-go="login">Masuk</button><button class="btn primary" data-go="register">Daftar gratis</button></span></nav>
+    <button class="ibtn lp-menu" data-lp-menu aria-label="Buka menu" aria-expanded="false"><span data-i="menu"></span></button>
+  </header>
+
+  <main id="top">
+    <section class="lp-hero">
+      <div class="lp-copy">
+        <span class="chip">Baru: area pribadi + bot Telegram</span>
+        <h1>Kelola kerja tim &amp; hidup pribadi dalam <em>satu tempat</em>.</h1>
+        <p>Project, tugas, kalender, dan chat tim — plus keuangan, catatan, wishlist, dan rencana travel pribadi. Pengingat deadline otomatis dikirim ke Telegram.</p>
+        <div class="lp-btns"><button class="btn primary big" data-go="register">Mulai gratis</button><a class="btn big gbtn g-only" href="/api/auth/google"><span class="g-ic" aria-hidden="true"></span>Lanjut dengan Google</a></div>
+        <ul class="lp-trust"><li><span data-i="check"></span>Verifikasi email</li><li><span data-i="check"></span>Data pribadi hanya milikmu</li><li><span data-i="check"></span>Rapi di HP</li></ul>
+      </div>
+      <div class="lp-mock" aria-hidden="true">
+        <div class="mk-top"><i></i><i></i><i></i><span>luki.app/dashboard</span></div>
+        <div class="mk-body">
+          <div class="mk-stats"><div class="on"><small>Total Projects</small><b>24</b></div><div><small>Ended</small><b>11</b></div><div><small>Running</small><b>11</b></div></div>
+          <div class="mk-row"><div class="mk-bars"><i style="height:45%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:95%"></i><i style="height:35%"></i><i style="height:70%"></i></div>
+            <div class="mk-ring"><div><b>46%</b><small>Ended</small></div></div></div>
+          <div class="mk-kan"><div><small>To do</small><p>Passkey sign-in</p><p>API docs</p></div><div><small>In review</small><p class="hl">Design login</p></div><div><small>Done</small><p>Q4 launch</p></div></div>
+        </div>
+        <div class="mk-tg"><b>LUKI Bot</b><p>⏰ H-3: Task "Design login" jatuh tempo 20 Nov.</p></div>
+      </div>
+    </section>
+
+    <section class="lp-sec" id="fitur">
+      <p class="lp-k">Fitur tim</p><h2>Semua yang tim kamu butuhkan</h2>
+      <div class="lp-grid">
+        <article><span data-i="dash"></span><h3>Dashboard &amp; analitik</h3><p>Statistik project, throughput, waktu kerja, dan kontributor teratas dari data asli.</p></article>
+        <article><span data-i="tasks"></span><h3>Kanban drag &amp; drop</h3><p>Pindahkan task antar tahap, filter prioritas, dan tugaskan ke rekan.</p></article>
+        <article><span data-i="cal"></span><h3>Kalender tim</h3><p>Meeting, review, dan deadline task/project dalam satu kalender.</p></article>
+        <article><span data-i="chat"></span><h3>Chat realtime</h3><p>Ngobrol langsung dengan rekan tim, lengkap dengan status online.</p></article>
+        <article><span data-i="file"></span><h3>Laporan PDF otomatis</h3><p>Project selesai? Laporan lengkap langsung dibuat dan dikirim ke tim.</p></article>
+        <article><span data-i="shield"></span><h3>Panel admin</h3><p>Kelola user, verifikasi, nonaktifkan akun, dan kirim pengumuman.</p></article>
+      </div>
+    </section>
+
+    <section class="lp-sec lp-split" id="pribadi">
+      <div>
+        <p class="lp-k">Area pribadi</p><h2>Ruang pribadimu, hanya untukmu</h2>
+        <p class="lp-p">Setiap user punya ruang pribadi yang tidak bisa dilihat siapa pun — termasuk admin.</p>
+        <ul class="lp-list">
+          <li><span data-i="wallet"></span><div><b>Keuangan</b><small>Catat pemasukan &amp; pengeluaran, budget bulanan, grafik per kategori.</small></div></li>
+          <li><span data-i="note"></span><div><b>Catatan</b><small>Catatan berwarna, sematkan yang penting, pasang pengingat.</small></div></li>
+          <li><span data-i="tasks"></span><div><b>Tugas pribadi</b><small>To-do dengan tenggat dan pengingat H-7 sampai H-1.</small></div></li>
+          <li><span data-i="gift"></span><div><b>Wishlist</b><small>Barang impian lengkap dengan harga, link, dan prioritas.</small></div></li>
+          <li><span data-i="plane"></span><div><b>Rencana travel</b><small>Tanggal, budget, dan countdown keberangkatan.</small></div></li>
+        </ul>
+      </div>
+      <div class="lp-phone" aria-hidden="true">
+        <div class="ph-in"><small>Keuangan · November</small><b class="ph-bal">Rp4.250.000</b><span class="ph-sub">Saldo bulan ini</span>
+          <div class="ph-cards"><div><small>Masuk</small><b>Rp8,5jt</b></div><div><small>Keluar</small><b>Rp4,25jt</b></div></div>
+          <div class="ph-tx"><p><span>Makan siang</span><b>-Rp25.000</b></p><p><span>Transport</span><b>-Rp40.000</b></p><p><span>Gaji</span><b class="in">+Rp8.500.000</b></p></div></div>
+      </div>
+    </section>
+
+    <section class="lp-sec lp-split rev" id="telegram">
+      <div class="lp-chat" aria-hidden="true">
+        <p class="bot">⏰ H-7: Perjalanan ke Bali pada 24 Nov 2026. Jangan lupa cek tiket!</p>
+        <p class="me">/catat 25000 makan siang</p>
+        <p class="bot">Pengeluaran dicatat: Rp25.000 — makan siang</p>
+        <p class="bot">Project "Q4 Launch Site" selesai. Laporan PDF terlampir.</p>
+      </div>
+      <div>
+        <p class="lp-k">Integrasi Telegram</p><h2>Pengingat yang benar-benar sampai</h2>
+        <p class="lp-p">Hubungkan akunmu sekali, lalu terima pengingat deadline H-7, H-3, H-2, dan H-1 untuk task, project, tugas pribadi, dan travel. Catat pengeluaran langsung dari chat.</p>
+        <div class="lp-steps"><div><b>1</b><span>Daftar &amp; verifikasi email</span></div><div><b>2</b><span>Settings → Connect Telegram</span></div><div><b>3</b><span>Terima pengingat otomatis</span></div></div>
+      </div>
+    </section>
+
+    <section class="lp-sec" id="faq">
+      <p class="lp-k">FAQ</p><h2>Pertanyaan yang sering ditanya</h2>
+      <div class="lp-faq">
+        <details><summary>Kenapa harus verifikasi email?</summary><p>Supaya hanya pemilik email asli yang bisa memakai akun, dan notifikasi penting sampai ke orang yang tepat. Login Google memakai email yang sudah diverifikasi Google.</p></details>
+        <details><summary>Apakah admin bisa melihat data pribadiku?</summary><p>Tidak. Keuangan, catatan, tugas, wishlist, dan travel hanya bisa diakses oleh pemilik akun.</p></details>
+        <details><summary>Bagaimana menghubungkan Telegram?</summary><p>Masuk, buka Settings → Notifications → Connect Telegram, lalu tekan Start di bot.</p></details>
+        <details><summary>Apakah bisa dipakai di HP?</summary><p>Bisa. Tampilan menyesuaikan layar iPhone dan Android dengan menu samping yang sama seperti di desktop.</p></details>
+      </div>
+    </section>
+
+    <section class="lp-sec lp-auth" id="masuk">
+      <div class="lp-auth-copy"><p class="lp-k">Mulai sekarang</p><h2>Masuk ke workspace kamu</h2><p class="lp-p">Pakai akun Google atau email &amp; password. Akun baru wajib verifikasi email sebelum bisa dipakai.</p></div>
+      <div class="a-card">
+        <div class="a-tabs" role="tablist"><button role="tab" class="on" data-tab="login">Login</button><button role="tab" data-tab="register">Register</button><i></i></div>
+        <div class="g-only"><a class="btn gbtn big wide" href="/api/auth/google"><span class="g-ic" aria-hidden="true"></span><span class="g-txt">Lanjut dengan Google</span></a><p class="or"><span>atau dengan email</span></p></div>
+        <form id="fLogin" novalidate>
+          <label class="fl">Email<input class="in" type="email" name="email" autocomplete="email" inputmode="email" required maxlength="100" placeholder="kamu@email.com"></label>
+          <label class="fl">Password<span class="pw"><input class="in" type="password" name="password" autocomplete="current-password" required maxlength="100" placeholder="Minimal 8 karakter"><button type="button" class="eye" data-eye aria-label="Tampilkan password">Lihat</button></span></label>
+          <p class="a-err" role="alert"></p>
+          <button type="button" class="linkbtn" data-resend hidden>Kirim ulang email verifikasi</button>
+          <button class="btn primary big">Login</button>
+        </form>
+        <form id="fReg" novalidate hidden>
+          <label class="fl">Nama lengkap<input class="in" name="name" autocomplete="name" required minlength="2" maxlength="50" placeholder="Nama kamu"></label>
+          <label class="fl">Email<input class="in" type="email" name="email" autocomplete="email" inputmode="email" required maxlength="100" placeholder="kamu@email.com"></label>
+          <div class="two"><label class="fl">Divisi<select class="in" name="division"><option>Engineering</option><option>Design</option><option>Marketing</option><option>Management</option></select></label>
+          <label class="fl">Jabatan<input class="in" name="role" maxlength="40" placeholder="Opsional"></label></div>
+          <label class="fl">Password<span class="pw"><input class="in" type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="Minimal 8 karakter"><button type="button" class="eye" data-eye aria-label="Tampilkan password">Lihat</button></span></label>
+          <label class="fl">Ulangi password<input class="in" type="password" name="confirm" autocomplete="new-password" required maxlength="100"></label>
+          <p class="a-err" role="alert"></p>
+          <button class="btn primary big">Buat akun</button>
+        </form>
+        <div id="vPanel" class="vpanel" hidden>
+          <span class="v-ic" data-i="mail"></span>
+          <h3>Cek email kamu</h3>
+          <p>Kami mengirim tautan verifikasi ke <b id="vEmail"></b>. Buka email itu dan klik <b>Verifikasi email</b> untuk mengaktifkan akun. Cek juga folder spam.</p>
+          <p class="mut" id="vNote" hidden>Server belum mengatur SMTP, jadi email belum terkirim. Admin: lihat tautan di console server atau isi SMTP di .env.</p>
+          <div class="fa"><button class="btn" data-tab-back>Kembali ke login</button><button class="btn primary" data-resend>Kirim ulang</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="lp-f"><span>© 2026 LUKI MANAGEMENT</span><span><a href="#fitur">Fitur</a> · <a href="#faq">FAQ</a> · <a href="#masuk">Masuk</a></span></footer>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="app">
+  <aside class="side" aria-label="Navigasi utama" id="side">
+    <a class="brand" href="#/dashboard" aria-label="LUKI MANAGEMENT">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v13a3 3 0 0 0 3 3h6"/><path d="M13 9l3-3 3 3"/></svg></span>
+      <span class="brand-t">LUKI<small>MANAGEMENT</small></span>
+    </a>
+    <nav class="nav">
+      <p class="cap">Menu</p>
+      <a href="#/dashboard" data-r="dashboard"><span data-i="dash"></span><b>Dashboard</b></a>
+      <a href="#/tasks" data-r="tasks"><span data-i="tasks"></span><b>Tasks</b><em class="badge" id="badge">0</em></a>
+      <a href="#/calendar" data-r="calendar"><span data-i="cal"></span><b>Calendar</b></a>
+      <a href="#/analytics" data-r="analytics"><span data-i="chart"></span><b>Analytics</b></a>
+      <a href="#/team" data-r="team"><span data-i="team"></span><b>Team</b><em class="badge msg" id="tbadge" hidden>0</em></a>
+      <p class="cap">Pribadi</p>
+      <a href="#/personal" data-r="personal"><span data-i="heart"></span><b>Ruang Pribadi</b></a>
+      <p class="cap general">General</p>
+      <a href="#/admin" data-r="admin" class="general admin-only" hidden><span data-i="shield"></span><b>Admin</b></a>
+      <a href="#/settings" data-r="settings" class="general"><span data-i="settings"></span><b>Settings</b></a>
+      <button class="navbtn general" data-act="help"><span data-i="help"></span><b>Help</b></button>
+      <button class="navbtn general" data-act="logout"><span data-i="logout"></span><b>Logout</b></button>
+    </nav>
+    <div class="promo">
+      <span class="promo-ic" data-i="send"></span>
+      <p>Pengingat via Telegram</p><small>H-7, H-3, H-2 &amp; H-1 otomatis</small>
+      <button data-act="go" data-k="settings">Hubungkan</button>
+    </div>
+  </aside>
+  <div class="scrim" data-act="nav-close"></div>
+  <main class="main">
+    <header class="top">
+      <button class="ibtn menu-btn" data-act="nav-open" aria-label="Buka menu" aria-controls="side"><span data-i="menu"></span></button>
+      <label class="search"><span data-i="search"></span>
+        <input id="q" type="search" autocomplete="off" aria-label="Cari" placeholder="Cari">
+        <kbd>⌘K</kbd></label>
+      <div class="top-r">
+        <button class="ibtn hide-xs" data-act="refresh" aria-label="Segarkan"><span data-i="refresh"></span></button>
+        <button class="ibtn" data-act="bell" aria-label="Notifikasi"><span data-i="bell"></span><i class="dot" id="dot"></i></button>
+        <button class="me" data-act="avatar" aria-label="Menu akun"><span class="av" id="meAv"></span><span class="me-t"><b id="meName"></b><small id="meMail"></small></span></button>
+      </div>
+    </header>
+    <section id="view" class="view" tabindex="-1"></section>
+  </main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<script src="app.js"></script>
+<script src="personal.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
