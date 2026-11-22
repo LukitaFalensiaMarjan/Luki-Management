@@ -62,8 +62,9 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
 - [x] **2.2 Modal Edit & Hapus Project di Dashboard**
   - Tombol ikon edit dan hapus pada baris project untuk owner/admin.
   - Modal ubah nama & due date serta konfirmasi modal hapus project (`DELETE /api/projects/:id`).
-- [ ] **2.3 Fitur Edit Jadwal / Event Kalender**
-  - Pada tampilan kalender (`vCal`), opsi edit waktu, judul, dan tipe event selain tombol hapus.
+- [x] **2.3 Fitur Edit Jadwal / Event Kalender**
+  - Pada tampilan kalender (`vCal`), modal edit untuk mengubah judul, tanggal, jam, dan kategori event (`meeting`, `team`, `review`, `deadline`, `social`).
+  - Terhubung ke endpoint `PATCH /api/events/:id` dengan validasi server.
 - [ ] **2.4 Drag & Drop di Layar Sentuh / Mobile UX**
   - Optimalkan interaksi pemindahan kartu kanban pada perangkat seluler.
 
@@ -90,8 +91,10 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
   - Pembuat workspace / Admin otomatis menjadi **Ketua Tim**.
   - Ketua Tim dapat mengatur role anggota tim: **Ketua Tim**, **Project Manager**, **Member**, **Viewer**.
   - Modal penetapan role di menu Team via `PATCH /api/team/members/:id/role`.
-- [ ] **3.4 Fitur Lupa Kata Sandi (Forgot / Reset Password)**
-  - Endpoint `POST /api/auth/forgot-password` dan `POST /api/auth/reset-password` via email.
+- [x] **3.4 Fitur Lupa Kata Sandi (Forgot / Reset Password)**
+  - Panel form permintaan reset kata sandi (`#forgotPanel`) terintegrasi di landing page auth.
+  - Endpoint `POST /api/auth/forgot-password` mengirimkan email pemulihan berisi token bertenggat 1 jam via Nodemailer Gmail.
+  - Halaman penerimaan token (`#resetPanel` via parameter URL `?resetToken=...`) dengan validasi kata sandi baru (min. 8 karakter) via `POST /api/auth/reset-password`.
 - [ ] **3.5 Fitur Hapus Akun Sendiri & Manajemen Sesi Aktif**
 
 **File Terkait:**
@@ -109,17 +112,19 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
 > **Status Saat Ini:** Fitur inti tim dan ruang pribadi sudah berfungsi, tetapi masih dalam format ringkas/sederhana.
 
 ### Checklist Kolaborasi Tim
-- [ ] **4.1 Modal Detail Task & Kolaborasi**
-  - Tambahkan kolom `description` pada tabel `tasks`.
-  - Buat drawer atau modal detail task yang menampilkan deskripsi lengkap, linimasa aktivitas task, dan status pengerjaan.
-  - **Sub-task / Checklist:** Kemampuan memecah task besar menjadi beberapa checklist item yang bisa dicentang satu per satu.
-  - **Diskusi / Komentar Task:** Kolom komentar di dalam task agar anggota yang ditugaskan dapat mendiskusikan progres.
+- [x] **4.1 Modal Detail Task & Kolaborasi**
+  - Kolom `description` pada tabel `tasks` (tersimpan via `PATCH /api/tasks/:id`).
+  - Drawer detail task (`openTaskDetail`) yang dapat diakses dengan mengklik kartu task atau menu ⋯ `Detail & Diskusi`.
+  - **Sub-task / Checklist:** Pecah task menjadi checklist item yang bisa dicentang satu per satu dengan indikator progres persentase (`GET/POST /api/tasks/:id/checklists`, `PATCH/DELETE /api/checklists/:id`).
+  - **Diskusi / Komentar Task:** Kolom komentar realtime berurutan di dalam task agar anggota dapat berdiskusi (`GET/POST /api/tasks/:id/comments`, `DELETE /api/comments/:id`).
 - [ ] **4.2 Chat Tim Berbasis Grup / Channel Project**
   - Buat tabel database untuk grup obrolan (`channels` dan `channel_members`).
   - Sediakan channel bawaan untuk setiap project yang dibuat (misal: `#project-billing-portal`).
   - Izinkan anggota project berdiskusi bersama, bukan hanya lewat pesan privat (1-on-1).
-- [ ] **4.3 Multi-Workspace / Pembagian Tim (Opsional)**
-  - Menambahkan konsep `workspaces` atau `organizations` jika di masa depan aplikasi ingin digunakan oleh lebih dari satu perusahaan/tim tanpa saling melihat project tim lain.
+- [x] **4.3 Multi-Team & Per-Team RBAC (Multi-Ruang Kerja Tim)**
+  - Dukungan membuat tim lebih dari satu (`teams` table dengan nama, logo/ikon preset, deskripsi, dan pembuat tim).
+  - Role tim bersifat independen per tim (`team_members` table dengan role `Ketua Tim`, `Project Manager`, `Member`, `Viewer`): seorang user bisa menjadi Ketua di Tim A dan Member di Tim B.
+  - Dropdown switcher tim instan di tampilan Team (`vTeam`) dan modal CRUD tim (`POST/PATCH/DELETE /api/teams`, `PATCH /api/teams/:id/members/:userId/role`).
 
 ### Checklist Ruang Pribadi (Personal Space)
 - [ ] **4.4 Transaksi Keuangan Berulang (Recurring Transactions)**
