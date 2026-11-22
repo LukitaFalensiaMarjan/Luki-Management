@@ -670,4 +670,21 @@ label.fl small{font-weight:500}
   .stat .n.sm{font-size:15px}
   .tgrid{grid-template-columns:1fr}
 }
+/* avatar & profile enhancements */
+.av-img{overflow:hidden;padding:0!important;background:none!important}
+.av-img img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.av-preset{display:grid;place-items:center;font-size:18px;background:var(--ac-soft);border:1px solid color-mix(in srgb,var(--ac) 25%,transparent)}
+.av-preview-wrap{display:flex;align-items:center;gap:16px;margin:8px 0 16px;padding:12px 14px;background:var(--bg);border-radius:14px;border:1px solid var(--line)}
+.av-preset-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
+.av-pbtn{display:grid;place-items:center;font-size:22px;padding:10px;border-radius:12px;background:var(--card);border:1.5px solid var(--line);cursor:pointer;transition:all .15s}
+.av-pbtn:hover{border-color:var(--ac);transform:scale(1.08)}
+.av-pbtn.on{border-color:var(--ac);background:var(--ac-soft);box-shadow:0 0 0 2px var(--ac)}
+/* role badges */
+.pill.role-lead{background:#fee2e2;color:#b91c1c;font-weight:700}
+.pill.role-pm{background:#fef3c7;color:#b45309;font-weight:700}
+.pill.role-member{background:#e0f2fe;color:#0369a1;font-weight:600}
+.pill.role-viewer{background:#f1f5f9;color:#64748b;font-weight:600}
+.bday-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#d97706;background:#fef3c7;padding:2px 8px;border-radius:99px;margin-top:4px}
+.sw2-chk{accent-color:var(--ac);cursor:pointer}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}

@@ -55,9 +55,23 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
   if (!cols.has('email_verified')) { add('email_verified', 'INTEGER NOT NULL DEFAULT 0'); db.exec('UPDATE users SET email_verified=1'); }
   add('verify_hash', 'TEXT'); add('verify_exp', 'INTEGER'); add('google_id', 'TEXT'); add('is_admin', 'INTEGER NOT NULL DEFAULT 0');
   add('disabled', 'INTEGER NOT NULL DEFAULT 0'); add('last_login', 'INTEGER'); add('budget', 'REAL NOT NULL DEFAULT 0');
+  add('username', 'TEXT'); add('avatar', "TEXT NOT NULL DEFAULT ''");
+  add('address', "TEXT NOT NULL DEFAULT ''"); add('birth_place', "TEXT NOT NULL DEFAULT ''");
+  add('birth_date', 'TEXT'); add('share_birthday', 'INTEGER NOT NULL DEFAULT 0');
+  add('team_role', "TEXT NOT NULL DEFAULT 'Member'");
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_google ON users(google_id) WHERE google_id IS NOT NULL');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_username ON users(username) WHERE username IS NOT NULL');
   for (const e of (process.env.ADMIN_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean)) db.prepare('UPDATE users SET is_admin=1 WHERE email=?').run(e);
   if (!db.prepare('SELECT 1 FROM users WHERE is_admin=1').get()) db.exec('UPDATE users SET is_admin=1 WHERE id=(SELECT MIN(id) FROM users)');
+  // Auto-generate username for users without one
+  for (const u of db.prepare("SELECT id, email, name FROM users WHERE username IS NULL OR username=''").all()) {
+    let base = (u.email.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user';
+    let cand = base, idx = 1;
+    while (db.prepare('SELECT 1 FROM users WHERE username=? AND id!=?').get(cand, u.id)) cand = `${base}${++idx}`;
+    db.prepare('UPDATE users SET username=? WHERE id=?').run(cand, u.id);
+  }
+  // Ensure Ketua Tim role for admins
+  db.exec("UPDATE users SET team_role='Ketua Tim' WHERE is_admin=1 AND (team_role IS NULL OR team_role='Member' OR team_role='')");
 }
 
 const all = (s, ...p) => db.prepare(s).all(...p);

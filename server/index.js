@@ -39,21 +39,38 @@ function auth(req, res, next) {
   if (!u) return next(E(401, 'Silakan login'));
   req.user = u; next();
 }
-const pubUser = u => ({ id: u.id, name: u.name, role: u.role, div: u.division, loc: u.location, on: online(u.id) });
-const meUser = u => ({ ...pubUser(u), email: u.email, bio: u.bio, tz: u.tz, accent: u.accent, week: u.week, notif: JSON.parse(u.notif), tg: !!u.tg_chat_id, admin: !!u.is_admin, provider: u.google_id ? 'google' : 'email', hasPassword: !!u.pass_hash, budget: u.budget || 0 });
+const pubUser = u => ({
+  id: u.id, name: u.name, username: u.username || '', avatar: u.avatar || '',
+  role: u.team_role || u.role || 'Member', teamRole: u.team_role || (u.is_admin ? 'Ketua Tim' : 'Member'),
+  div: u.division, loc: u.location, address: u.address || '', birthPlace: u.birth_place || '',
+  birthDate: u.share_birthday ? u.birth_date : null, shareBirthday: !!u.share_birthday,
+  on: online(u.id), admin: !!u.is_admin
+});
+const meUser = u => ({
+  ...pubUser(u), email: u.email, bio: u.bio, tz: u.tz, accent: u.accent, week: u.week,
+  notif: JSON.parse(u.notif), tg: !!u.tg_chat_id, provider: u.google_id ? 'google' : 'email',
+  hasPassword: !!u.pass_hash, budget: u.budget || 0, birthDate: u.birth_date || ''
+});
 
 app.post('/api/auth/register', async (req, res) => {
   if (process.env.ALLOW_REGISTER === '0') throw E(403, 'Pendaftaran ditutup');
   if (limited('reg' + req.ip)) throw E(429, 'Terlalu banyak percobaan, coba lagi nanti');
   const b = req.body || {}, name = s(b.name, 50, 2), email = s(b.email, 100).toLowerCase(), pw = s(b.password, 100, 8);
   if (!EMAIL.test(email)) throw E(400, 'Email tidak valid');
-  const div = en(b.division || 'Engineering', DIVS), role = b.role ? s(b.role, 40, 0) || 'Member' : 'Member';
+  const div = s(b.division || 'Engineering & IT', 50, 1);
+  let un = (b.username ? s(b.username, 30, 3) : email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_.]/g, '');
+  if (!/^[a-z0-9_.]{3,30}$/.test(un)) un = email.split('@')[0].slice(0, 20);
   const ex = one('SELECT * FROM users WHERE email=?', email);
   if (ex && ex.email_verified) throw E(409, 'Email sudah terdaftar. Silakan login.');
+  if (one('SELECT id FROM users WHERE username=? AND email!=?', un, email)) {
+    un = `${un}${Math.floor(Math.random() * 900 + 100)}`;
+  }
   const hash = await hashPw(pw);
+  const isFirst = firstUser();
+  const teamRole = isFirst ? 'Ketua Tim' : 'Member';
   // Unverified registration can be re-done: only the inbox owner can ever activate it.
-  const id = ex ? (run('UPDATE users SET name=?,pass_hash=?,role=?,division=? WHERE id=?', name, hash, role, div, ex.id), ex.id)
-    : run('INSERT INTO users(name,email,pass_hash,role,division,created_at,email_verified,is_admin) VALUES(?,?,?,?,?,?,0,?)', name, email, hash, role, div, now(), firstUser() ? 1 : 0).lastInsertRowid;
+  const id = ex ? (run('UPDATE users SET name=?,username=?,pass_hash=?,role=?,division=?,team_role=? WHERE id=?', name, un, hash, teamRole, div, teamRole, ex.id), ex.id)
+    : run('INSERT INTO users(name,username,email,pass_hash,role,division,team_role,created_at,email_verified,is_admin) VALUES(?,?,?,?,?,?,?,?,0,?)', name, un, email, hash, teamRole, div, teamRole, now(), isFirst ? 1 : 0).lastInsertRowid;
   const sent = await sendVerify({ id, email, name });
   res.status(201).json({ verify: true, email, sent });
 });
@@ -119,7 +136,11 @@ app.get('/api/auth/google/callback', async (req, res) => {
     } else {
       if (process.env.ALLOW_REGISTER === '0') return res.redirect('/?auth=closed');
       const name = String(g.name || email.split('@')[0]).trim().slice(0, 50).padEnd(2, '_');
-      u = { id: run('INSERT INTO users(name,email,pass_hash,google_id,email_verified,is_admin,created_at,last_login) VALUES(?,?,?,?,1,?,?,?)', name, email, '', g.sub, firstUser() ? 1 : 0, now(), now()).lastInsertRowid };
+      let un = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 25);
+      if (one('SELECT id FROM users WHERE username=?', un)) un = `${un}${Math.floor(Math.random() * 900 + 100)}`;
+      const isFirst = firstUser();
+      const teamRole = isFirst ? 'Ketua Tim' : 'Member';
+      u = { id: run('INSERT INTO users(name,username,email,pass_hash,google_id,email_verified,is_admin,team_role,role,created_at,last_login) VALUES(?,?,?,?,?,1,?,?,?,?,?)', name, un, email, '', g.sub, isFirst ? 1 : 0, teamRole, teamRole, now(), now()).lastInsertRowid };
     }
     startSession(res, u.id); res.redirect('/#/dashboard');
   } catch (e) { console.error('[google]', e.message); res.redirect('/?auth=google_fail'); }
@@ -233,17 +254,54 @@ app.post('/api/time', (req, res) => {
 app.patch('/api/me', (req, res) => {
   const b = req.body || {}, u = req.user, f = {};
   if ('name' in b) f.name = s(b.name, 50, 2);
-  if ('role' in b) f.role = s(b.role, 40, 0) || 'Member';
-  if ('division' in b) f.division = en(b.division, DIVS);
+  if ('username' in b) {
+    const un = s(b.username, 30, 3).toLowerCase();
+    if (!/^[a-z0-9_.]{3,30}$/.test(un)) throw E(400, 'Username hanya boleh huruf kecil, angka, titik, atau garis bawah (3-30 karakter)');
+    const ex = one('SELECT id FROM users WHERE username=? AND id!=?', un, u.id);
+    if (ex) throw E(409, 'Username sudah digunakan, silakan pilih yang lain');
+    f.username = un;
+  }
+  if ('avatar' in b) f.avatar = typeof b.avatar === 'string' ? b.avatar.slice(0, 500000) : '';
+  if ('division' in b) f.division = s(b.division, 50, 1);
   if ('tz' in b) f.tz = s(b.tz, 40);
   if ('bio' in b) f.bio = s(b.bio, 200, 0);
   if ('location' in b) f.location = s(b.location, 40, 0);
+  if ('address' in b) f.address = s(b.address, 150, 0);
+  if ('birthPlace' in b) f.birth_place = s(b.birthPlace, 50, 0);
+  if ('birthDate' in b) f.birth_date = b.birthDate ? D(b.birthDate) : null;
+  if ('shareBirthday' in b) f.share_birthday = b.shareBirthday ? 1 : 0;
   if ('accent' in b) f.accent = en(b.accent, ['ocean', 'forest', 'plum', 'ember']);
   if ('week' in b) f.week = en(+b.week, [0, 1]);
   if ('budget' in b) f.budget = money(b.budget);
   if ('notif' in b) { const cur = JSON.parse(u.notif); for (const k of ['assign', 'due', 'chat', 'report', 'personal']) if (typeof b.notif?.[k] === 'boolean') cur[k] = b.notif[k]; f.notif = JSON.stringify(cur); }
   const k = Object.keys(f); if (k.length) run(`UPDATE users SET ${k.map(x => x + '=?').join(',')} WHERE id=?`, ...k.map(x => f[x]), u.id);
   res.json({ ok: true });
+});
+
+app.post('/api/me/password', async (req, res) => {
+  const b = req.body || {}, u = req.user;
+  const newPw = s(b.newPassword || '', 100, 8);
+  if (u.pass_hash) {
+    const oldPw = String(b.oldPassword || '');
+    if (!oldPw || !(await verifyPw(oldPw, u.pass_hash))) throw E(401, 'Kata sandi saat ini tidak sesuai');
+  }
+  const hash = await hashPw(newPw);
+  run('UPDATE users SET pass_hash=? WHERE id=?', hash, u.id);
+  res.json({ ok: true });
+});
+
+app.patch('/api/team/members/:id/role', (req, res) => {
+  const isLead = req.user.is_admin || req.user.team_role === 'Ketua Tim';
+  if (!isLead) throw E(403, 'Hanya Ketua Tim atau Admin yang dapat menetapkan role anggota');
+  const targetId = int(req.params.id);
+  const target = one('SELECT * FROM users WHERE id=?', targetId);
+  if (!target) throw E(404, 'Anggota tim tidak ditemukan');
+  const role = en(req.body?.role, ['Ketua Tim', 'Project Manager', 'Member', 'Viewer']);
+  const makeAdmin = role === 'Ketua Tim' ? 1 : (target.is_admin && role !== 'Ketua Tim' && targetId !== req.user.id ? 0 : target.is_admin);
+  run('UPDATE users SET team_role=?, role=?, is_admin=? WHERE id=?', role, role, makeAdmin, target.id);
+  activity(req.user.id, null, `${req.user.name} menetapkan peran ${target.name} sebagai ${role}`);
+  broadcast({ type: 'data' });
+  res.json({ ok: true, role });
 });
 
 app.post('/api/team/invite', async (req, res) => {

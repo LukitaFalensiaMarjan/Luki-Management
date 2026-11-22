@@ -34,7 +34,31 @@ function check() {
     const d = daysTo(t.date); if (!STEPS.includes(d)) continue;
     send('trip', t.id, t.date, d, t.user_id, `H-${d}: Perjalanan ke ${t.title} ${d === 1 ? 'besok' : 'pada'} ${fmt(t.date)}. Jangan lupa cek tiket & barang bawaan!`, 'personal'); n++;
   }
+  checkBirthdays();
   return n;
+}
+
+function checkBirthdays() {
+  const d = new Date();
+  const todayMD = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const year = d.getFullYear();
+  const bdays = all('SELECT id,name,birth_date FROM users WHERE share_birthday=1 AND birth_date IS NOT NULL AND disabled=0 AND email_verified=1');
+  for (const u of bdays) {
+    if (!u.birth_date || u.birth_date.slice(5) !== todayMD) continue;
+    const key = `bday-${year}`;
+    const sent = one('SELECT 1 FROM reminders WHERE kind=? AND ref_id=? AND due=?', 'bday', u.id, key);
+    if (sent) continue;
+
+    // Notify teammates
+    const others = all('SELECT id FROM users WHERE id!=? AND disabled=0 AND email_verified=1', u.id);
+    for (const o of others) {
+      notify(o.id, 'announce', `🎉 Hari ini ${u.name} berulang tahun! Jangan lupa ucapkan selamat ulang tahun! 🎂`);
+    }
+    // Birthday wish to the member themselves
+    notify(u.id, 'announce', `🎂 Selamat ulang tahun, ${u.name}! Semoga harimu menyenangkan dan sukses selalu! 🎉`);
+
+    run('INSERT OR IGNORE INTO reminders(kind,ref_id,due,days,user_id,sent_at) VALUES(?,?,?,?,?,?)', 'bday', u.id, key, 0, u.id, now());
+  }
 }
 const LABEL = { tx: 'Keuangan', note: 'Catatan', ptask: 'Tugas pribadi', wish: 'Wishlist', trip: 'Travel' };
 function exact() {

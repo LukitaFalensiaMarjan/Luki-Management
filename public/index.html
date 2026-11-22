@@ -112,9 +112,26 @@
         </form>
         <form id="fReg" novalidate hidden>
           <label class="fl">Nama lengkap<input class="in" name="name" autocomplete="name" required minlength="2" maxlength="50" placeholder="Nama kamu"></label>
-          <label class="fl">Email<input class="in" type="email" name="email" autocomplete="email" inputmode="email" required maxlength="100" placeholder="kamu@email.com"></label>
-          <div class="two"><label class="fl">Divisi<select class="in" name="division"><option>Engineering</option><option>Design</option><option>Marketing</option><option>Management</option></select></label>
-          <label class="fl">Jabatan<input class="in" name="role" maxlength="40" placeholder="Opsional"></label></div>
+          <div class="two">
+            <label class="fl">Email<input class="in" type="email" name="email" autocomplete="email" inputmode="email" required maxlength="100" placeholder="kamu@email.com"></label>
+            <label class="fl">Username<input class="in" name="username" autocomplete="username" minlength="3" maxlength="30" placeholder="username unik"></label>
+          </div>
+          <label class="fl">Divisi
+            <select class="in" name="division_sel" id="regDivSel">
+              <option value="Engineering &amp; IT">Engineering &amp; IT</option>
+              <option value="Product &amp; UI/UX">Product &amp; UI/UX</option>
+              <option value="Marketing &amp; Komunikasi">Marketing &amp; Komunikasi</option>
+              <option value="Sales &amp; Business Dev">Sales &amp; Business Dev</option>
+              <option value="Keuangan &amp; Akuntansi">Keuangan &amp; Akuntansi</option>
+              <option value="Human Resources (HR)">Human Resources (HR)</option>
+              <option value="Operasional &amp; Logistik">Operasional &amp; Logistik</option>
+              <option value="Customer Support">Customer Support</option>
+              <option value="Legal &amp; Kepatuhan">Legal &amp; Kepatuhan</option>
+              <option value="Manajemen &amp; Eksekutif">Manajemen &amp; Eksekutif</option>
+              <option value="_custom">Lainnya (Isi sendiri)...</option>
+            </select>
+          </label>
+          <label class="fl" id="regCustomDivWrap" hidden>Nama Divisi Kustom<input class="in" name="division_custom" maxlength="50" placeholder="Tuliskan nama divisi kamu"></label>
           <label class="fl">Password<span class="pw"><input class="in" type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="Minimal 8 karakter"><button type="button" class="eye" data-eye aria-label="Tampilkan password">Lihat</button></span></label>
           <label class="fl">Ulangi password<input class="in" type="password" name="confirm" autocomplete="new-password" required maxlength="100"></label>
           <p class="a-err" role="alert"></p>

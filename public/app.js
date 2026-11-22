@@ -77,7 +77,27 @@ const load = async () => { S = await api('GET', '/api/bootstrap'); };
 const mem = id => S.members.find(m => m.id === id);
 const ini = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const hue = id => (id * 47) % 360;
-const av = (m, c = '') => m ? `<span class="av ${c}" style="--h:${hue(m.id)}" title="${esc(m.name)}">${esc(ini(m.name))}</span>` : '';
+const AVATAR_PRESETS = [
+  ['preset:fox', '🦊', 'Fox'], ['preset:rocket', '🚀', 'Rocket'], ['preset:cat', '🐱', 'Cat'], ['preset:lion', '🦁', 'Lion'],
+  ['preset:star', '⭐', 'Star'], ['preset:fire', '🔥', 'Fire'], ['preset:coffee', '☕', 'Coffee'], ['preset:laptop', '💻', 'Tech'],
+  ['preset:palette', '🎨', 'Design'], ['preset:crown', '👑', 'Crown'], ['preset:target', '🎯', 'Focus'], ['preset:plant', '🌿', 'Growth']
+];
+const DIVISIONS = [
+  'Engineering & IT', 'Product & UI/UX', 'Marketing & Komunikasi', 'Sales & Business Dev',
+  'Keuangan & Akuntansi', 'Human Resources (HR)', 'Operasional & Logistik', 'Customer Support',
+  'Legal & Kepatuhan', 'Manajemen & Eksekutif'
+];
+const av = (m, c = '') => {
+  if (!m) return '';
+  if (m.avatar?.startsWith('preset:')) {
+    const p = AVATAR_PRESETS.find(x => x[0] === m.avatar);
+    return `<span class="av ${c} av-preset" title="${esc(m.name)}">${p ? p[1] : '👤'}</span>`;
+  }
+  if (m.avatar) {
+    return `<span class="av ${c} av-img" title="${esc(m.name)}"><img src="${m.avatar}" alt="${esc(m.name)}"></span>`;
+  }
+  return `<span class="av ${c}" style="--h:${hue(m.id)}" title="${esc(m.name)}">${esc(ini(m.name))}</span>`;
+};
 const ph = n => (n.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 7) % 360;
 const openTasks = id => S.tasks.filter(t => t.stage !== 'done' && t.who.includes(id));
 const STAGES = [['todo', 'To do'], ['progress', 'In progress'], ['review', 'In review'], ['done', 'Done']];
@@ -166,7 +186,7 @@ function vDash() {
     const st = !t ? 'Pending' : t.stage === 'done' ? 'Completed' : t.stage === 'todo' ? 'Pending' : 'InProgress';
     return `<div class="crow">${av(m)}<div><b>${esc(m.name)}</b><small>Working on ${esc(t ? t.title : '—')}</small></div><span class="pill s-${st}">${st === 'InProgress' ? 'In Progress' : st}</span></div>`;
   }).join('') || '<p class="mut">Tidak ada hasil.</p>';
-  const row = p => `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div><b>${esc(p.name)}</b><small>Due date: ${short(p.due)}</small></div>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
+  const row = p => `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><small>Due date: ${short(p.due)}</small></div>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me || S.me.admin ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button><button class="ibtn sm" data-act="edit-proj" data-id="${p.id}" title="Edit project">${ic('edit')}</button><button class="ibtn sm" data-act="del-proj" data-id="${p.id}" title="Hapus project" style="color:var(--bad)">${ic('trash')}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
   const opts = P.filter(p => p.status !== 'ended').map(p => `<option value="${p.id}" ${TT.pid === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
   return head('Dashboard', 'Everything your team is shipping, in one calm place.', `<button class="btn primary" data-act="add-project">${ic('plus')}Add Project</button><button class="btn" data-act="import">${ic('upload')}Import Data</button>`) +
   `<div class="grid g4" style="margin-bottom:14px">${stat('total', 'Total Projects', tot, 'All projects', 1)}${stat('end', 'Ended Projects', end, 'Completed, report ready')}${stat('run', 'Running Projects', run, 'In progress')}${stat('pen', 'Pending Projects', pen, 'Awaiting review')}</div>
@@ -194,14 +214,33 @@ function vTasks() {
 }
 
 function vTeam() {
-  const divs = ['All', 'Engineering', 'Design', 'Marketing', 'Management'], me = S.me.id;
-  const ms = S.members.filter(m => (TD === 'All' || m.div === TD) && hasQ((m.name + ' ' + m.role).toLowerCase()));
+  const me = S.me.id, isLead = S.me.admin || S.me.teamRole === 'Ketua Tim';
+  const ms = S.members.filter(m => (TD === 'All' || m.div === TD) && hasQ((m.name + ' ' + (m.username || '') + ' ' + (m.teamRole || m.role)).toLowerCase()));
   const cards = ms.map((m, i) => {
     const o = openTasks(m.id).length, dn = S.tasks.filter(t => t.stage === 'done' && t.who.includes(m.id)).length, wl = Math.min(95, o * 20), un = S.unread[m.id] || 0;
-    return `<div class="card mcard" style="--i:${i}"><span class="avw">${av(m, 'lg')}<i class="st ${m.on ? 'on' : ''}" title="${m.on ? 'Online' : 'Offline'}"></i></span><h4>${esc(m.name)}${m.id === me ? ' <small class="mut">(you)</small>' : ''}</h4><small>${esc(m.role)}</small><span class="tag">${esc(m.div)}</span><div class="mstats"><div><b>${o}</b><small class="mut">Open tasks</small></div><div><b>${dn}</b><small class="mut">Completed</small></div></div><div class="wl"><div><span>Workload</span><span>${wl}%</span></div><div class="prog"><i style="width:${wl}%"></i></div></div><div class="mbtn">${m.id === me ? '<button class="btn sm" disabled>You</button>' : `<button class="btn sm chatbtn" data-act="chat" data-id="${m.id}">${ic('chat')}Chat${un ? `<em class="badge">${un}</em>` : ''}</button>`}<button class="btn sm primary" data-act="profile" data-id="${m.id}">Profile</button></div></div>`;
+    const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[m.teamRole] || 'role-member';
+    const bday = m.birthDate ? `<span class="bday-pill">🎂 ${m.birthDate.slice(5)}</span>` : '';
+    return `<div class="card mcard" style="--i:${i}">
+      <span class="avw">${av(m, 'lg')}<i class="st ${m.on ? 'on' : ''}" title="${m.on ? 'Online' : 'Offline'}"></i></span>
+      <h4>${esc(m.name)}${m.id === me ? ' <small class="mut">(you)</small>' : ''}</h4>
+      <small class="mut">@${esc(m.username || 'user' + m.id)}</small>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin:6px 0">
+        <span class="pill ${roleCls}">${esc(m.teamRole || 'Member')}</span>
+        <span class="tag">${esc(m.div)}</span>
+      </div>
+      ${bday}
+      <div class="mstats"><div><b>${o}</b><small class="mut">Open tasks</small></div><div><b>${dn}</b><small class="mut">Completed</small></div></div>
+      <div class="wl"><div><span>Workload</span><span>${wl}%</span></div><div class="prog"><i style="width:${wl}%"></i></div></div>
+      <div class="mbtn">
+        ${m.id === me ? '<button class="btn sm" disabled>You</button>' : `<button class="btn sm chatbtn" data-act="chat" data-id="${m.id}">${ic('chat')}Chat${un ? `<em class="badge">${un}</em>` : ''}</button>`}
+        <button class="btn sm" data-act="profile" data-id="${m.id}">Detail</button>
+        ${isLead && m.id !== me ? `<button class="btn sm primary" data-act="set-role" data-id="${m.id}">${ic('shield')}Atur Role</button>` : ''}
+      </div>
+    </div>`;
   }).join('');
-  return head('Team', 'Everyone on the workspace, what they\'re carrying and who\'s around.', `<button class="btn primary" data-act="invite">${ic('plus')}Invite member</button>`) +
-    `<div class="tabs">${divs.map(d => `<button class="tab ${TD === d ? 'on' : ''}" data-act="td" data-k="${d}">${d}</button>`).join('')}<span class="cnt">${S.members.filter(m => m.on).length} online now</span></div><div class="tgrid">${cards || '<div class="empty" style="grid-column:1/-1">Tidak ada anggota.</div>'}</div>`;
+  const allDivs = ['All', ...new Set(S.members.map(m => m.div).filter(Boolean))];
+  return head('Team', 'Anggota workspace, peran tim (RBAC), beban kerja dan status online.', `<button class="btn primary" data-act="invite">${ic('plus')}Invite member</button>`) +
+    `<div class="tabs">${allDivs.map(d => `<button class="tab ${TD === d ? 'on' : ''}" data-act="td" data-k="${d}">${d}</button>`).join('')}<span class="cnt">${S.members.filter(m => m.on).length} online now</span></div><div class="tgrid">${cards || '<div class="empty" style="grid-column:1/-1">Tidak ada anggota.</div>'}</div>`;
 }
 
 function vCal() {
@@ -248,17 +287,79 @@ function vAna() {
 }
 
 function vSet() {
-  const nav = [['profile', 'user', 'Profile'], ['notif', 'bellS', 'Notifications'], ['look', 'palette', 'Appearance']].map(([k, i, l]) => `<button class="${ST === k ? 'on' : ''}" data-act="st" data-k="${k}">${ic(i)}${l}</button>`).join('');
+  const nav = [['profile', 'user', 'Profile'], ['security', 'shield', 'Kata Sandi'], ['notif', 'bellS', 'Notifications'], ['look', 'palette', 'Appearance']].map(([k, i, l]) => `<button class="${ST === k ? 'on' : ''}" data-act="st" data-k="${k}">${ic(i)}${l}</button>`).join('');
   let p; const m = S.me;
-  if (ST === 'profile') p = `<h2>Profile</h2><p>This is how teammates see you across the workspace.</p><form id="pf" class="f">${field('Full name', `<input class="in" name="name" required minlength="2" maxlength="50" value="${esc(m.name)}">`)}${field(`Email <small class="mut">(${m.provider === 'google' ? 'akun Google' : 'terverifikasi'})</small>`, `<input class="in" type="email" value="${esc(m.email)}" readonly aria-readonly="true">`)}${field('Role', `<input class="in" name="role" maxlength="40" value="${esc(m.role)}">`)}${field('Division', `<select class="in" name="division">${['Engineering', 'Design', 'Marketing', 'Management'].map(d => `<option ${d === m.div ? 'selected' : ''}>${d}</option>`).join('')}</select>`)}${field('Time zone', `<select class="in" name="tz">${['GMT+7 · Jakarta', 'GMT+8 · Makassar', 'GMT+9 · Jayapura', 'GMT+0 · London', 'GMT-5 · New York'].map(z => `<option ${z === m.tz ? 'selected' : ''}>${z}</option>`).join('')}</select>`)}${field('Bio', `<textarea class="in" name="bio" maxlength="200">${esc(m.bio)}</textarea>`, 1)}<div class="fa w"><button type="button" class="btn" data-act="discard">Discard</button><button class="btn primary">Save changes</button></div></form>`;
-  else if (ST === 'notif') {
+  if (ST === 'profile') {
+    const isCustomDiv = m.div && !DIVISIONS.includes(m.div);
+    const divOpts = DIVISIONS.map(d => `<option value="${d}" ${d === m.div ? 'selected' : ''}>${d}</option>`).join('') +
+      `<option value="_custom" ${isCustomDiv ? 'selected' : ''}>Lainnya (Isi sendiri)...</option>`;
+    const curAv = m.avatar?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === m.avatar)?.[1] || '👤') : m.avatar ? `<img src="${m.avatar}">` : ini(m.name);
+    const curAvCls = m.avatar?.startsWith('preset:') ? 'av-preset' : m.avatar ? 'av-img' : '';
+    const avPresetsHtml = AVATAR_PRESETS.map(([id, emoji, label]) => `<button type="button" class="av-pbtn ${m.avatar === id ? 'on' : ''}" data-act="pick-av" data-id="${id}" title="${label}">${emoji}</button>`).join('');
+    const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[m.teamRole] || 'role-member';
+
+    p = `<h2>Profile Saya</h2><p>Kelola identitas, foto profil, dan informasi pribadimu di workspace.</p>
+    <form id="pf" class="f">
+      <div class="field">
+        <label class="lab">Foto Profil / Avatar</label>
+        <div class="av-preview-wrap">
+          <span class="av lg ${curAvCls}" id="setAvPrev">${curAv}</span>
+          <div>
+            <div class="fa" style="margin:0 0 6px">
+              <input type="file" id="avFile" accept="image/*" style="display:none">
+              <button type="button" class="btn sm" data-act="trigger-av-file">${ic('upload')}Upload Foto</button>
+              <button type="button" class="btn sm" data-act="reset-av">Reset Inisial</button>
+            </div>
+            <small class="mut">Pilih ikon preset di bawah atau upload gambar sendiri.</small>
+          </div>
+        </div>
+        <div class="av-preset-grid">${avPresetsHtml}</div>
+      </div>
+      <div class="two">
+        ${field('Nama Lengkap', `<input class="in" name="name" required minlength="2" maxlength="50" value="${esc(m.name)}">`)}
+        ${field('Username <small class="mut">(unik)</small>', `<div style="display:flex;align-items:center"><span style="padding:0 8px;font-weight:700;color:var(--mut)">@</span><input class="in" name="username" required minlength="3" maxlength="30" value="${esc(m.username || '')}" placeholder="username"></div>`)}
+      </div>
+      <div class="two">
+        ${field(`Email <small class="mut">(${m.provider === 'google' ? 'Google' : 'terverifikasi'})</small>`, `<input class="in" type="email" value="${esc(m.email)}" readonly aria-readonly="true">`)}
+        ${field('Peran dalam Tim', `<div style="display:flex;align-items:center;height:42px"><span class="pill ${roleCls}" style="font-size:13px">${esc(m.teamRole || 'Member')}</span></div>`)}
+      </div>
+      ${field('Divisi', `<select class="in" name="division_sel" id="pfDivSel">${divOpts}</select>`)}
+      <div class="field" id="pfCustomDivWrap" ${isCustomDiv ? '' : 'hidden'}>
+        <label class="lab">Nama Divisi Kustom</label>
+        <input class="in" name="division_custom" maxlength="50" value="${isCustomDiv ? esc(m.div) : ''}" placeholder="Tuliskan nama divisimu">
+      </div>
+      ${field('Alamat Tinggal / Domisili', `<input class="in" name="address" maxlength="150" value="${esc(m.address || '')}" placeholder="Contoh: Jl. Sudirman No. 12, Jakarta">`)}
+      <div class="two">
+        ${field('Tempat Lahir', `<input class="in" name="birthPlace" maxlength="50" value="${esc(m.birthPlace || '')}" placeholder="Kota tempat lahir">`)}
+        ${field('Tanggal Lahir', `<input class="in" type="date" name="birthDate" value="${esc(m.birthDate || '')}">`)}
+      </div>
+      <div class="tg" style="margin:8px 0 16px">
+        <div><b>Bagikan tanggal lahir ke tim</b><small>Anggota tim lain akan menerima notifikasi ucapan selamat saat hari ulang tahunmu tiba 🎉</small></div>
+        <input type="checkbox" name="shareBirthday" class="sw2-chk" ${m.shareBirthday ? 'checked' : ''} style="width:20px;height:20px">
+      </div>
+      ${field('Zona Waktu', `<select class="in" name="tz">${['GMT+7 · Jakarta', 'GMT+8 · Makassar', 'GMT+9 · Jayapura', 'GMT+0 · London', 'GMT-5 · New York'].map(z => `<option ${z === m.tz ? 'selected' : ''}>${z}</option>`).join('')}</select>`)}
+      ${field('Bio / Catatan', `<textarea class="in" name="bio" maxlength="200" placeholder="Ceritakan sedikit tentang dirimu...">${esc(m.bio)}</textarea>`, 1)}
+      <div class="fa w"><button type="button" class="btn" data-act="discard">Batal</button><button class="btn primary">Simpan Perubahan</button></div>
+    </form>`;
+  } else if (ST === 'security') {
+    const pwForm = m.hasPassword ? `
+      ${field('Kata Sandi Saat Ini', `<input class="in" type="password" name="oldPassword" required placeholder="Masukkan kata sandi lama">`)}
+      ${field('Kata Sandi Baru', `<input class="in" type="password" name="newPassword" required minlength="8" placeholder="Minimal 8 karakter">`)}
+      ${field('Konfirmasi Kata Sandi Baru', `<input class="in" type="password" name="confirmPassword" required placeholder="Ulangi kata sandi baru">`)}
+    ` : `
+      <p class="mut" style="font-size:12.5px;margin-bottom:12px">Akunmu terhubung via Google dan belum memiliki kata sandi mandiri. Kamu dapat membuat kata sandi untuk login alternatif.</p>
+      ${field('Kata Sandi Baru', `<input class="in" type="password" name="newPassword" required minlength="8" placeholder="Minimal 8 karakter">`)}
+      ${field('Konfirmasi Kata Sandi Baru', `<input class="in" type="password" name="confirmPassword" required placeholder="Ulangi kata sandi baru">`)}
+    `;
+    p = `<h2>Kata Sandi &amp; Keamanan</h2><p>Kelola kata sandi akunmu untuk keamanan akun.</p><form id="pwf" class="f">${pwForm}<div class="fa w"><button class="btn primary">Perbarui Kata Sandi</button></div></form>`;
+  } else if (ST === 'notif') {
     const n = m.notif, rows = [['assign', 'Task assignments', 'Saat kamu ditugaskan ke task baru'], ['due', 'Deadline reminders', 'Pengingat H-7, H-3, H-2 dan H-1 untuk task dan project'], ['chat', 'Chat messages', 'Teruskan pesan baru ke Telegram saat kamu offline'], ['report', 'Project reports', 'Laporan PDF saat project selesai'], ['personal', 'Pengingat pribadi', 'Catatan, tugas pribadi, tagihan, wishlist, dan travel']];
     const tgc = !S.tg.enabled ? `<p class="mut" style="font-size:12px">Bot Telegram belum dikonfigurasi di server. Isi <code>TELEGRAM_BOT_TOKEN</code> di file <code>.env</code> lalu restart server.</p>`
       : m.tg ? `<div class="tg-st"><span class="pill s-ended">Connected</span><div class="fa" style="margin:0"><button class="btn sm" data-act="tg-test">Send test</button><button class="btn sm danger" data-act="tg-unlink">Disconnect</button></div></div>`
       : `<div class="tg-st"><span class="pill s-pending">Not connected</span><button class="btn sm primary" data-act="tg-link">${ic('send')}Connect Telegram</button></div>`;
     p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
   } else p = `<h2>Appearance</h2><p>The accent re-tints the whole workspace, and is saved to your account.</p><p class="lab2" style="margin-top:0">Accent</p><div class="acc">${[['forest', 'Forest', '#1f7a4d'], ['ocean', 'Ocean', '#1e47b8'], ['plum', 'Plum', '#6b35c4'], ['ember', 'Ember', '#c2491d']].map(([k, l, c]) => `<button class="acb ${m.accent === k ? 'on' : ''}" data-act="accent" data-k="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div><p class="lab2">Week starts on</p><div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
-  return head('Settings', 'Your profile, notifications and how LUKI looks.') + `<div class="sw"><div class="card snav">${nav}</div><div class="card panel">${p}</div></div>`;
+  return head('Settings', 'Profil kamu, keamanan kata sandi, dan tampilan LUKI.') + `<div class="sw"><div class="card snav">${nav}</div><div class="card panel">${p}</div></div>`;
 }
 
 const ROUTES = { dashboard: [vDash, 'Dashboard', 'Search projects & people'], tasks: [vTasks, 'Tasks', 'Search tasks'], calendar: [vCal, 'Calendar', 'Search events'], analytics: [vAna, 'Analytics', 'Search'], team: [vTeam, 'Team', 'Search people'], settings: [vSet, 'Settings', 'Search'] };
@@ -293,8 +394,17 @@ function post() {
   $('#badge').textContent = S.tasks.filter(t => t.stage !== 'done').length;
   const un = Object.values(S.unread).reduce((a, b) => a + b, 0), tb = $('#tbadge'); tb.hidden = !un; tb.textContent = un;
   $('#dot').classList.toggle('on', S.notifs.some(n => n.unread));
-  $('#meName').textContent = S.me.name; $('#meMail').textContent = S.me.email;
-  const a = $('#meAv'); a.textContent = ini(S.me.name); a.style.setProperty('--h', hue(S.me.id));
+  $('#meName').textContent = S.me.name;
+  $('#meMail').textContent = S.me.username ? '@' + S.me.username : S.me.email;
+  const a = $('#meAv');
+  if (S.me.avatar?.startsWith('preset:')) {
+    const p = AVATAR_PRESETS.find(x => x[0] === S.me.avatar);
+    a.className = 'av av-preset'; a.innerHTML = p ? p[1] : '👤'; a.style.removeProperty('--h');
+  } else if (S.me.avatar) {
+    a.className = 'av av-img'; a.innerHTML = `<img src="${S.me.avatar}">`; a.style.removeProperty('--h');
+  } else {
+    a.className = 'av'; a.textContent = ini(S.me.name); a.style.setProperty('--h', hue(S.me.id));
+  }
   $$('.nav a[data-r]').forEach(a => a.dataset.r === cur ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
 }
 /* per-route data loaders (analytics, personal, admin). READY[k] false => fetch before painting. */
@@ -374,7 +484,16 @@ $('#fReg').addEventListener('submit', e => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(d.email.trim())) return authErr(f, 'Email tidak valid');
   if (d.password.length < 8) return authErr(f, 'Password minimal 8 karakter');
   if (d.password !== d.confirm) return authErr(f, 'Konfirmasi password tidak sama');
-  delete d.confirm; authSubmit(f, '/api/auth/register', d);
+  const div = d.division_sel === '_custom' ? (d.division_custom || '').trim() : d.division_sel;
+  if (!div) return authErr(f, 'Tentukan divisi kamu');
+  const payload = {
+    name: d.name.trim(),
+    email: d.email.trim().toLowerCase(),
+    password: d.password,
+    username: (d.username || '').trim().toLowerCase(),
+    division: div
+  };
+  authSubmit(f, '/api/auth/register', payload);
 });
 $$('.a-tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 $$('[data-eye]').forEach(b => b.addEventListener('click', () => { const i = b.previousElementSibling, show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.textContent = show ? 'Sembunyi' : 'Lihat'; b.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password'); }));
@@ -484,7 +603,87 @@ const ACT = {
   td: b => { TD = b.dataset.k; paint(false); },
   'new-task': () => form(`${modalHead('New task')}<form class="f">${field('Title', '<input class="in" name="title" required maxlength="80">', 1)}${field('Tag', `<select class="in" name="tag">${['Frontend', 'Backend', 'Design', 'QA', 'Marketing'].map(x => `<option>${x}</option>`).join('')}</select>`)}${field('Priority', '<select class="in" name="prio"><option>High</option><option selected>Medium</option><option>Low</option></select>')}${field('Project', `<select class="in" name="projectId">${projOpts()}</select>`)}${field('Due date', `<input class="in" type="date" name="due" required value="${off(7)}">`)}${field('Assignees', memberChecks([S.me.id]), 1)}<div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Create task</button></div></form>`,
     async fd => { const t = fd.get('title').trim(); if (t) await mut('POST', '/api/tasks', { title: t, tag: fd.get('tag'), prio: fd.get('prio'), due: fd.get('due'), projectId: fd.get('projectId') || null, who: fd.getAll('who').map(Number) }, 'Task created'); }),
-  menu: b => { const id = +b.dataset.id, t = S.tasks.find(x => x.id === id); pop(b, `<p class="cap">Move to</p>${STAGES.filter(s => s[0] !== t.stage).map(([k, l]) => `<button data-act="mv" data-id="${id}" data-k="${k}">${l}</button>`).join('')}<hr><button data-act="del-task" data-id="${id}" style="color:var(--bad)">${ic('trash')}Delete</button>`); },
+  menu: b => {
+    const id = +b.dataset.id, t = S.tasks.find(x => x.id === id);
+    pop(b, `<p class="cap">Aksi Task</p><button data-act="edit-task" data-id="${id}">${ic('edit')}Edit task</button><p class="cap">Move to</p>${STAGES.filter(s => s[0] !== t.stage).map(([k, l]) => `<button data-act="mv" data-id="${id}" data-k="${k}">${l}</button>`).join('')}<hr><button data-act="del-task" data-id="${id}" style="color:var(--bad)">${ic('trash')}Delete</button>`);
+  },
+  'edit-task': b => {
+    closePop();
+    const id = +b.dataset.id, t = S.tasks.find(x => x.id === id); if (!t) return;
+    form(`${modalHead('Edit task')}<form class="f">
+      ${field('Title', `<input class="in" name="title" required maxlength="80" value="${esc(t.title)}">`, 1)}
+      ${field('Tag', `<select class="in" name="tag">${['Frontend', 'Backend', 'Design', 'QA', 'Marketing'].map(x => `<option ${x === t.tag ? 'selected' : ''}>${x}</option>`).join('')}</select>`)}
+      ${field('Priority', `<select class="in" name="prio">${['High', 'Medium', 'Low'].map(x => `<option ${x === t.prio ? 'selected' : ''}>${x}</option>`).join('')}</select>`)}
+      ${field('Project', `<select class="in" name="projectId">${projOpts(t.projectId)}</select>`)}
+      ${field('Due date', `<input class="in" type="date" name="due" required value="${t.due}">`)}
+      ${field('Assignees', memberChecks(t.who), 1)}
+      <div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Save changes</button></div>
+    </form>`,
+    async fd => {
+      const title = (fd.get('title') || '').trim();
+      if (!title) return;
+      await mut('PATCH', '/api/tasks/' + id, {
+        title, tag: fd.get('tag'), prio: fd.get('prio'), due: fd.get('due'),
+        projectId: fd.get('projectId') || null, who: fd.getAll('who').map(Number)
+      }, 'Task diperbarui');
+    });
+  },
+  'edit-proj': b => {
+    const p = S.projects.find(x => x.id === +b.dataset.id); if (!p) return;
+    form(`${modalHead('Edit project')}<form class="f">
+      ${field('Project name', `<input class="in" name="name" required maxlength="60" value="${esc(p.name)}">`, 1)}
+      ${field('Due date', `<input class="in" type="date" name="due" required value="${p.due}">`, 1)}
+      <div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Save changes</button></div>
+    </form>`,
+    async fd => {
+      const n = (fd.get('name') || '').trim();
+      if (n) await mut('PATCH', '/api/projects/' + p.id, { name: n, due: fd.get('due') }, `Project "${n}" diperbarui`);
+    });
+  },
+  'del-proj': b => {
+    const p = S.projects.find(x => x.id === +b.dataset.id); if (!p) return;
+    layer('modal', `${modalHead('Hapus project?')}<p style="font-size:13px;line-height:1.5">Project <b>${esc(p.name)}</b> beserta seluruh task di dalamnya akan dihapus. Tindakan ini tidak dapat dibatalkan.</p><div class="fa"><button class="btn" data-act="close">Batal</button><button class="btn primary danger-bg" data-act="del-proj-ok" data-id="${p.id}">Hapus project</button></div>`);
+  },
+  'del-proj-ok': async b => {
+    closeLayer();
+    await mut('DELETE', '/api/projects/' + b.dataset.id, null, 'Project dihapus');
+  },
+  'pick-av': async b => {
+    const id = b.dataset.id;
+    S.me.avatar = id;
+    await mut('PATCH', '/api/me', { avatar: id }, 'Avatar diperbarui', false);
+    paint(false); post();
+  },
+  'trigger-av-file': () => { $('#avFile')?.click(); },
+  'reset-av': async () => {
+    S.me.avatar = '';
+    await mut('PATCH', '/api/me', { avatar: '' }, 'Avatar direset ke inisial', false);
+    paint(false); post();
+  },
+  'set-role': b => {
+    const m = mem(+b.dataset.id); if (!m) return;
+    const roles = [
+      ['Ketua Tim', 'Ketua Tim — Akses penuh & mengatur role tim'],
+      ['Project Manager', 'Project Manager — Membuat & mengelola project dan task'],
+      ['Member', 'Member — Mengerjakan task, kalender, chat, dan analitik'],
+      ['Viewer', 'Viewer — Pengamat dengan hak akses hanya lihat (read-only)']
+    ];
+    form(`${modalHead('Atur Role: ' + esc(m.name))}<form class="f">
+      <p class="mut" style="font-size:12.5px;margin-bottom:12px">Tetapkan hak akses (RBAC) untuk <b>${esc(m.name)}</b> (@${esc(m.username || 'user' + m.id)}).</p>
+      ${field('Pilih Role Tim', `<select class="in" name="role">${roles.map(([r, desc]) => `<option value="${r}" ${r === (m.teamRole || 'Member') ? 'selected' : ''}>${desc}</option>`).join('')}</select>`, 1)}
+      <div class="fa w"><button type="button" class="btn" data-act="close">Batal</button><button class="btn primary">Simpan Role</button></div>
+    </form>`,
+    async fd => {
+      const role = fd.get('role');
+      if (role) {
+        try {
+          await api('PATCH', `/api/team/members/${m.id}/role`, { role });
+          closeLayer(); toast(`Role ${m.name} diubah menjadi ${role}`);
+          await load(); paint(false);
+        } catch (e) { if (e.message !== 'auth') toast(e.message); }
+      }
+    });
+  },
   mv: b => { closePop(); moveTask(+b.dataset.id, b.dataset.k); },
   'del-task': b => { closePop(); mut('DELETE', '/api/tasks/' + b.dataset.id, null, 'Task deleted', false); },
   invite: () => {
@@ -527,8 +726,27 @@ const ACT = {
     }
   },
   chat: b => openChat(+b.dataset.id),
-  profile: b => { const m = mem(+b.dataset.id), ts = S.tasks.filter(t => t.who.includes(m.id)), o = ts.filter(t => t.stage !== 'done');
-    layer('drawer', `<div class="mh"><span></span><button class="x" data-act="close" aria-label="Tutup">${ic('x')}</button></div><div class="dr-top">${av(m, 'lg')}<h3>${esc(m.name)}</h3><small>${esc(m.role)}</small><br><small>${esc(m.loc || '—')} · ${esc(m.div)} · ${m.on ? 'Online' : 'Offline'}</small></div><div class="dr-st"><div><b>${o.length}</b><small>Open</small></div><div><b>${ts.length - o.length}</b><small>Done</small></div><div><b>${Math.min(95, o.length * 20)}%</b><small>Load</small></div></div><p class="lab2" style="margin-top:0">Assigned tasks</p>${ts.map(t => `<div class="dr-t"><i></i>${esc(t.title)}<small>${STAGES.find(s => s[0] === t.stage)[1]}</small></div>`).join('') || '<p class="mut">Belum ada tugas.</p>'}<div class="fa" style="margin-top:20px">${m.id !== S.me.id ? `<button class="btn" data-act="chat" data-id="${m.id}">${ic('chat')}Chat</button>` : ''}<button class="btn primary" data-act="assign" data-id="${m.id}">${ic('plus')}Assign task</button></div>`); },
+  profile: b => {
+    const m = mem(+b.dataset.id), ts = S.tasks.filter(t => t.who.includes(m.id)), o = ts.filter(t => t.stage !== 'done');
+    const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[m.teamRole] || 'role-member';
+    const bdayInfo = m.birthDate ? `<small style="display:block;margin-top:4px">🎂 Lahir: ${esc(m.birthPlace ? m.birthPlace + ', ' : '')}${short(m.birthDate)}</small>` : '';
+    const addrInfo = m.address ? `<small style="display:block">📍 ${esc(m.address)}</small>` : '';
+    layer('drawer', `<div class="mh"><span></span><button class="x" data-act="close" aria-label="Tutup">${ic('x')}</button></div>
+      <div class="dr-top">${av(m, 'lg')}
+        <h3>${esc(m.name)}</h3>
+        <small class="mut">@${esc(m.username || 'user' + m.id)}</small><br>
+        <div style="display:flex;gap:6px;justify-content:center;margin:6px 0">
+          <span class="pill ${roleCls}">${esc(m.teamRole || 'Member')}</span>
+          <span class="tag">${esc(m.div)}</span>
+        </div>
+        <small class="mut"><i class="st-d ${m.on ? 'on' : ''}"></i>${m.on ? 'Online' : 'Offline'}</small>
+        ${bdayInfo}
+        ${addrInfo}
+      </div>
+      <div class="dr-st"><div><b>${o.length}</b><small>Open</small></div><div><b>${ts.length - o.length}</b><small>Done</small></div><div><b>${Math.min(95, o.length * 20)}%</b><small>Load</small></div></div>
+      <p class="lab2" style="margin-top:0">Assigned tasks</p>${ts.map(t => `<div class="dr-t"><i></i>${esc(t.title)}<small>${STAGES.find(s => s[0] === t.stage)[1]}</small></div>`).join('') || '<p class="mut">Belum ada tugas.</p>'}
+      <div class="fa" style="margin-top:20px">${m.id !== S.me.id ? `<button class="btn" data-act="chat" data-id="${m.id}">${ic('chat')}Chat</button>` : ''}<button class="btn primary" data-act="assign" data-id="${m.id}">${ic('plus')}Assign task</button></div>`);
+  },
   assign: b => { const m = mem(+b.dataset.id), av2 = S.tasks.filter(t => t.stage !== 'done' && !t.who.includes(m.id)); if (!av2.length) return toast('Semua tugas sudah ditugaskan');
     form(`${modalHead('Assign task')}<form class="f">${field('Task', `<select class="in" name="t">${av2.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select>`, 1)}<div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Assign to ${esc(m.name.split(' ')[0])}</button></div></form>`,
       async fd => { const t = S.tasks.find(x => x.id === +fd.get('t')); await mut('PATCH', '/api/tasks/' + t.id, { who: [...t.who, m.id] }, 'Task assigned'); }); },
@@ -575,12 +793,86 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (b && ACT[b.dataset.act]) ACT[b.dataset.act](b, e);
 });
 document.addEventListener('submit', async e => {
-  if (e.target.id !== 'pf') return; e.preventDefault();
-  const fd = new FormData(e.target), n = fd.get('name').trim(); if (!n) return;
-  await mut('PATCH', '/api/me', { name: n, email: fd.get('email'), role: fd.get('role'), division: fd.get('division'), tz: fd.get('tz'), bio: fd.get('bio') }, 'Profile saved', false);
+  if (e.target.id === 'pf') {
+    e.preventDefault();
+    const f = e.target, fd = new FormData(f), n = (fd.get('name') || '').trim();
+    if (!n) return toast('Nama tidak boleh kosong');
+    const divSel = fd.get('division_sel');
+    const div = divSel === '_custom' ? (fd.get('division_custom') || '').trim() : divSel;
+    const username = (fd.get('username') || '').trim().toLowerCase();
+    const payload = {
+      name: n,
+      username,
+      division: div || S.me.div,
+      address: (fd.get('address') || '').trim(),
+      birthPlace: (fd.get('birthPlace') || '').trim(),
+      birthDate: fd.get('birthDate') || null,
+      shareBirthday: !!f.querySelector('[name=shareBirthday]')?.checked,
+      tz: fd.get('tz'),
+      bio: (fd.get('bio') || '').trim()
+    };
+    try {
+      await mut('PATCH', '/api/me', payload, 'Profil berhasil disimpan', false);
+      await load();
+      paint(false);
+      post();
+    } catch (err) {
+      if (err.message !== 'auth') toast(err.message);
+    }
+  } else if (e.target.id === 'pwf') {
+    e.preventDefault();
+    const f = e.target, fd = new FormData(f);
+    const newPw = fd.get('newPassword') || '';
+    const confirmPw = fd.get('confirmPassword') || '';
+    if (newPw.length < 8) return toast('Kata sandi baru minimal 8 karakter');
+    if (newPw !== confirmPw) return toast('Konfirmasi kata sandi tidak cocok');
+    try {
+      await api('POST', '/api/me/password', {
+        oldPassword: fd.get('oldPassword') || '',
+        newPassword: newPw
+      });
+      f.reset();
+      toast('Kata sandi berhasil diperbarui!');
+    } catch (err) {
+      if (err.message !== 'auth') toast(err.message);
+    }
+  }
 });
-document.addEventListener('change', e => {
-  if (e.target.type === 'file') { const s = $('#fn'); if (s) s.textContent = e.target.files[0]?.name || 'Pilih file .csv'; }
+document.addEventListener('change', async e => {
+  if (e.target.id === 'pfDivSel') {
+    const w = $('#pfCustomDivWrap');
+    if (w) w.hidden = e.target.value !== '_custom';
+  }
+  if (e.target.id === 'regDivSel') {
+    const w = $('#regCustomDivWrap');
+    if (w) w.hidden = e.target.value !== '_custom';
+  }
+  if (e.target.id === 'avFile') {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return toast('Pilih file gambar (PNG, JPG, dll.)');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = async () => {
+        const cvs = document.createElement('canvas');
+        cvs.width = cvs.height = 128;
+        const ctx = cvs.getContext('2d');
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2, sy = (img.height - minDim) / 2;
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, 128, 128);
+        const dataUrl = cvs.toDataURL('image/jpeg', 0.85);
+        S.me.avatar = dataUrl;
+        await mut('PATCH', '/api/me', { avatar: dataUrl }, 'Foto profil berhasil diunggah', false);
+        paint(false); post();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  }
+  if (e.target.type === 'file' && e.target.id !== 'avFile') {
+    const s = $('#fn'); if (s) s.textContent = e.target.files[0]?.name || 'Pilih file .csv';
+  }
   if (e.target.dataset.actChange === 'tt-proj') { TT.pid = +e.target.value; ttSave(); }
 });
 $('#q').addEventListener('input', e => { Q = e.target.value.trim().toLowerCase(); if (S && cur !== 'analytics' && cur !== 'settings') paint(false); });
