@@ -81,6 +81,18 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
   const projCols = new Set(db.prepare('PRAGMA table_info(projects)').all().map(c => c.name));
   if (!projCols.has('team_id')) db.exec("ALTER TABLE projects ADD COLUMN team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL");
 
+  // Migration for messages (channel)
+  const msgCols = new Set(db.prepare('PRAGMA table_info(messages)').all().map(c => c.name));
+  if (!msgCols.has('channel')) {
+    db.exec("ALTER TABLE messages ADD COLUMN channel TEXT");
+    db.exec("CREATE INDEX IF NOT EXISTS ix_msg_channel ON messages(channel, id)");
+  }
+
+  // Migration for personal (wallet, recurring)
+  const personalCols = new Set(db.prepare('PRAGMA table_info(personal)').all().map(c => c.name));
+  if (!personalCols.has('wallet')) db.exec("ALTER TABLE personal ADD COLUMN wallet TEXT NOT NULL DEFAULT 'cash'");
+  if (!personalCols.has('recurring')) db.exec("ALTER TABLE personal ADD COLUMN recurring TEXT");
+
   // Multi-team tables
   db.exec(`
   CREATE TABLE IF NOT EXISTS teams(

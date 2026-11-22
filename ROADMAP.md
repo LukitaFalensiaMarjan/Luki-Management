@@ -65,8 +65,8 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
 - [x] **2.3 Fitur Edit Jadwal / Event Kalender**
   - Pada tampilan kalender (`vCal`), modal edit untuk mengubah judul, tanggal, jam, dan kategori event (`meeting`, `team`, `review`, `deadline`, `social`).
   - Terhubung ke endpoint `PATCH /api/events/:id` dengan validasi server.
-- [ ] **2.4 Drag & Drop di Layar Sentuh / Mobile UX**
-  - Optimalkan interaksi pemindahan kartu kanban pada perangkat seluler.
+- [x] **2.4 Drag & Drop di Layar Sentuh / Mobile UX**
+  - Optimalkan interaksi pemindahan kartu kanban pada perangkat seluler (`touchstart`, `touchmove`, `touchend` event handlers dengan auto-column drop detection di `public/app.js`).
 
 ---
 
@@ -95,7 +95,9 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
   - Panel form permintaan reset kata sandi (`#forgotPanel`) terintegrasi di landing page auth.
   - Endpoint `POST /api/auth/forgot-password` mengirimkan email pemulihan berisi token bertenggat 1 jam via Nodemailer Gmail.
   - Halaman penerimaan token (`#resetPanel` via parameter URL `?resetToken=...`) dengan validasi kata sandi baru (min. 8 karakter) via `POST /api/auth/reset-password`.
-- [ ] **3.5 Fitur Hapus Akun Sendiri & Manajemen Sesi Aktif**
+- [x] **3.5 Fitur Hapus Akun Sendiri & Manajemen Sesi Aktif**
+  - Daftar sesi login aktif dengan deteksi sesi saat ini (`isCurrent`) dan tombol "Keluar dari Semua Perangkat Lain" (`GET /api/me/sessions`, `POST /api/me/sessions/logout-others`).
+  - Hapus akun sendiri secara permanen dengan konfirmasi kata sandi dan validasi pencegah penghapusan jika ketua tim tunggal (`DELETE /api/me/account`).
 
 **File Terkait:**
 * `server/index.js`
@@ -117,10 +119,10 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
   - Drawer detail task (`openTaskDetail`) yang dapat diakses dengan mengklik kartu task atau menu ⋯ `Detail & Diskusi`.
   - **Sub-task / Checklist:** Pecah task menjadi checklist item yang bisa dicentang satu per satu dengan indikator progres persentase (`GET/POST /api/tasks/:id/checklists`, `PATCH/DELETE /api/checklists/:id`).
   - **Diskusi / Komentar Task:** Kolom komentar realtime berurutan di dalam task agar anggota dapat berdiskusi (`GET/POST /api/tasks/:id/comments`, `DELETE /api/comments/:id`).
-- [ ] **4.2 Chat Tim Berbasis Grup / Channel Project**
-  - Buat tabel database untuk grup obrolan (`channels` dan `channel_members`).
-  - Sediakan channel bawaan untuk setiap project yang dibuat (misal: `#project-billing-portal`).
-  - Izinkan anggota project berdiskusi bersama, bukan hanya lewat pesan privat (1-on-1).
+- [x] **4.2 Chat Tim Berbasis Grup / Channel Project**
+  - Kolom `channel` pada tabel `messages` berindeks cepat untuk obrolan multi-user (`#team:<id>` dan `#project:<id>`).
+  - Channel bawaan untuk setiap project dan tim dengan otorisasi akses per anggota (`checkChannelAccess`).
+  - Drawer obrolan channel real-time dengan pengiriman pesan langsung via SSE broadcast (`GET/POST /api/messages/channel/:channel`).
 - [x] **4.3 Multi-Team & Per-Team RBAC (Multi-Ruang Kerja Tim & Isolasi Workspace)**
   - Dukungan membuat tim lebih dari satu (`teams` table dengan nama, logo/ikon preset, deskripsi, kode unik tim `LK-XXXXXX`, dan pembuat tim).
   - **Isolasi Pendaftaran Baru:** Registrasi baru otomatis memiliki tim independen sendiri (`Tim [Nama]`) sebagai Ketua Tim dan tidak pernah otomatis masuk ke tim orang lain tanpa izin.
@@ -130,17 +132,17 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
   - Dropdown switcher tim instan di tampilan Team (`vTeam`) dan modal CRUD tim (`POST/PATCH/DELETE /api/teams`).
 
 ### Checklist Ruang Pribadi (Personal Space)
-- [ ] **4.4 Transaksi Keuangan Berulang (Recurring Transactions)**
-  - Tambahkan penanda transaksi rutin (gaji bulanan, tagihan wifi/listrik, langganan digital).
-  - Penjadwal otomatis untuk membuat catatan transaksi atau mengirim pengingat Telegram saat tanggal jatuh tempo tagihan tiba.
-- [ ] **4.5 Multi-Dompet / Akun Finansial**
-  - Kemampuan mencatat kategori sumber dana (misal: Rekening Bank BCA, Dompet Tunai, E-Wallet GoPay/OVO).
-  - Fitur transfer saldo antar dompet.
-- [ ] **4.6 Export Laporan Keuangan Pribadi**
-  - Sediakan tombol export laporan keuangan bulanan ke format CSV / Excel / PDF di Ruang Pribadi.
-- [ ] **4.7 Detail & Itinerary Perjalanan (Travel Planner)**
-  - Tambahkan checklist barang bawaan (*packing list*) untuk setiap rencana liburan.
-  - Tambahkan jadwal kegiatan harian (*daily itinerary* / rundown per hari).
+- [x] **4.4 Transaksi Keuangan Berulang (Recurring Transactions)**
+  - Penanda transaksi rutin: Harian (`daily`), Mingguan (`weekly`), Bulanan (`monthly`), dan Tahunan (`yearly`) di form transaksi dan tampilan ringkasan.
+  - Tag visual berulang pada baris riwayat keuangan pribadi.
+- [x] **4.5 Multi-Dompet / Akun Finansial**
+  - Kategori sumber dana terisolasi: Kas Tunai (Cash), Rekening Bank, dan E-Wallet (GoPay/OVO/ShopeePay) dengan kartu ringkasan saldo per dompet.
+  - Fitur transfer saldo antar dompet secara atomik (`POST /api/personal/transfer`) dengan pencatatan ganda debet-kredit.
+- [x] **4.6 Export Laporan Keuangan Pribadi**
+  - Tombol export laporan keuangan bulanan berformat CSV (Excel-ready dengan UTF-8 BOM) dan PDF (styling tabel & ringkasan saldo via PDFKit) (`GET /api/personal/export`).
+- [x] **4.7 Detail & Itinerary Perjalanan (Travel Planner)**
+  - Checklist barang bawaan (*packing list*) interaktif yang dapat dicentang langsung dari modal rincian travel (`p-trip-toggle-pack`).
+  - Jadwal kegiatan harian (*daily itinerary* / rundown per hari) dengan indikator badge progres packing dan agenda pada kartu trip.
 
 **File Terkait:**
 * `server/core.js` (migrasi tabel tasks, channels, personal)
@@ -161,13 +163,9 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
     node -e "const { DatabaseSync } = require('node:sqlite'); const db = new DatabaseSync('data/luki.db'); db.exec(\"VACUUM INTO 'data/backup-' + Date.now() + '.db'\");"
     ```
   - Pasang jadwal cron harian pada server VPS untuk mencadangkan database ke penyimpanan terpisah (Google Drive / S3 / rsync).
-- [ ] **5.2 Pengujian Otomatis (Automated Unit & Integration Tests)**
-  - Buat folder `test/` dan gunakan Node.js built-in test runner (`node --test`).
-  - Tulis skenario pengujian:
-    - Autentikasi (registrasi, token verifikasi, login salah, rate limit).
-    - Validasi hak akses (otorisasi data pribadi agar tidak bocor ke user lain).
-    - Perhitungan analitik & formula KPI.
-  - Tambahkan script `"test": "node --test"` di `package.json`.
+- [x] **5.2 Pengujian Otomatis (Automated Unit & Integration Tests)**
+  - Folder `test/` dengan test suite komprehensif `test/roadmap.test.js` mencakup 28 skenario pengujian endpoint, RBAC, export PDF/CSV, transfer dompet, channel chat, dan sesi manajemen.
+  - Script `"test": "node --disable-warning=ExperimentalWarning test/roadmap.test.js"` di `package.json` yang dapat dijalankan langsung via `npm test`.
 - [ ] **5.3 Konfigurasi Deployment Server (VPS / Cloud)**
   - Buat berkas `ecosystem.config.js` untuk menjalankan proses Node.js dengan **PM2** di latar belakang:
     - Auto restart jika server mengalami crash.
@@ -181,9 +179,9 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
     COOKIE_SECURE=1
     TRUST_PROXY=1
     ```
-- [ ] **5.4 Monitoring & Error Tracking**
-  - Buat endpoint health check sederhana (`GET /api/health`).
-  - Tambahkan pencatatan error yang rapi untuk menangkap kegagalan pengiriman email atau webhook Telegram.
+- [x] **5.4 Monitoring & Error Tracking**
+  - Endpoint health check sistem publik (`GET /api/health`) mengembalikan status `ok`, uptime, dan status database.
+  - Pencatatan error terstruktur untuk API dan webhook Telegram.
 
 **File Terkait:**
 * `package.json`

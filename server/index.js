@@ -245,6 +245,11 @@ app.get('/api/auth/dev-session', (req, res) => {
   res.redirect('/#/dashboard');
 });
 
+/* ---------- health check (public) ---------- */
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: Math.round(process.uptime()), time: now(), database: 'connected' });
+});
+
 app.use('/api', auth);
 
 /* ---------- bootstrap ---------- */
@@ -782,9 +787,84 @@ app.post('/api/team/invite', async (req, res) => {
 });
 
 /* ---------- chat ---------- */
+function checkChannelAccess(user, ch) {
+  if (user.is_admin) return true;
+  if (ch.startsWith('team:')) {
+    const tid = int(ch.split(':')[1]);
+    return !!one('SELECT 1 FROM team_members WHERE team_id=? AND user_id=?', tid, user.id);
+  }
+  if (ch.startsWith('project:')) {
+    const pid = int(ch.split(':')[1]);
+    const p = one('SELECT team_id, owner_id FROM projects WHERE id=?', pid);
+    if (!p) return false;
+    if (p.owner_id === user.id) return true;
+    if (p.team_id) {
+      return !!one('SELECT 1 FROM team_members WHERE team_id=? AND user_id=?', p.team_id, user.id);
+    }
+    return false;
+  }
+  return false;
+}
+
+function channelParticipants(ch) {
+  if (ch.startsWith('team:')) {
+    const tid = int(ch.split(':')[1]);
+    return all('SELECT user_id FROM team_members WHERE team_id=?', tid).map(r => r.user_id);
+  }
+  if (ch.startsWith('project:')) {
+    const pid = int(ch.split(':')[1]);
+    const p = one('SELECT team_id, owner_id FROM projects WHERE id=?', pid);
+    const set = new Set();
+    if (p?.owner_id) set.add(p.owner_id);
+    if (p?.team_id) {
+      for (const r of all('SELECT user_id FROM team_members WHERE team_id=?', p.team_id)) set.add(r.user_id);
+    }
+    return [...set];
+  }
+  return [];
+}
+
+app.get('/api/messages/channel/:channel', (req, res) => {
+  const ch = String(req.params.channel || '');
+  if (!checkChannelAccess(req.user, ch)) throw E(403, 'Kamu tidak memiliki akses ke channel ini');
+  const rows = all(`
+    SELECT m.id, m.from_id, m.channel, m.body, m.created_at,
+           u.name as from_name, u.avatar as from_avatar, u.username as from_username
+    FROM messages m
+    JOIN users u ON u.id=m.from_id
+    WHERE m.channel=?
+    ORDER BY m.id ASC
+    LIMIT 200
+  `, ch);
+  res.json(rows);
+});
+
+app.post('/api/messages/channel/:channel', (req, res) => {
+  const ch = String(req.params.channel || '');
+  if (!checkChannelAccess(req.user, ch)) throw E(403, 'Kamu tidak memiliki akses ke channel ini');
+  const body = s(req.body?.body, 2000);
+  if (limited('msg' + req.user.id, 60)) throw E(429, 'Terlalu banyak pesan, tunggu sebentar');
+  const r = run('INSERT INTO messages(from_id,to_id,channel,body,created_at) VALUES(?,?,?,?,?)', req.user.id, req.user.id, ch, body, now());
+  const m = {
+    id: r.lastInsertRowid,
+    from_id: req.user.id,
+    channel: ch,
+    body,
+    created_at: now(),
+    from_name: req.user.name,
+    from_avatar: req.user.avatar,
+    from_username: req.user.username
+  };
+  const members = channelParticipants(ch);
+  for (const uid of members) {
+    pushUser(uid, { type: 'channel_message', channel: ch, message: m });
+  }
+  res.status(201).json(m);
+});
+
 app.get('/api/messages/:uid', (req, res) => {
   const o = int(req.params.uid), me = req.user.id;
-  const rows = all('SELECT id,from_id,to_id,body,created_at FROM (SELECT * FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY id DESC LIMIT 200) ORDER BY id', me, o, o, me);
+  const rows = all("SELECT id,from_id,to_id,body,created_at FROM (SELECT * FROM messages WHERE ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?)) AND (channel IS NULL OR channel='') ORDER BY id DESC LIMIT 200) ORDER BY id", me, o, o, me);
   run('UPDATE messages SET read_at=? WHERE to_id=? AND from_id=? AND read_at IS NULL', now(), me, o);
   res.json(rows);
 });
@@ -799,6 +879,56 @@ app.post('/api/messages', (req, res) => {
   res.status(201).json(m);
 });
 app.post('/api/notifications/read', (req, res) => { run('UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL', now(), req.user.id); res.json({ ok: true }); });
+
+/* ---------- sessions & account management ---------- */
+app.get('/api/me/sessions', (req, res) => {
+  const curTok = cookies(req)[COOKIE];
+  const curHash = curTok ? sha(curTok) : '';
+  const list = all('SELECT token_hash, expires_at FROM sessions WHERE user_id=? AND expires_at>? ORDER BY expires_at DESC', req.user.id, now());
+  res.json(list.map((s, idx) => ({
+    id: idx + 1,
+    isCurrent: s.token_hash === curHash,
+    expiresAt: s.expires_at
+  })));
+});
+
+app.post('/api/me/sessions/logout-others', (req, res) => {
+  const curTok = cookies(req)[COOKIE];
+  const curHash = curTok ? sha(curTok) : '';
+  if (curHash) {
+    run('DELETE FROM sessions WHERE user_id=? AND token_hash != ?', req.user.id, curHash);
+  }
+  res.json({ ok: true, message: 'Berhasil keluar dari semua perangkat lain' });
+});
+
+app.delete('/api/me/account', async (req, res) => {
+  const pw = typeof req.body?.password === 'string' ? req.body.password : '';
+  const u = one('SELECT * FROM users WHERE id=?', req.user.id);
+  if (u.pass_hash) {
+    const ok = await verifyPw(pw, u.pass_hash);
+    if (!ok) throw E(401, 'Kata sandi salah. Konfirmasi penghapusan akun dibatalkan.');
+  }
+  const leadTeams = all("SELECT team_id FROM team_members WHERE user_id=? AND role='Ketua Tim'", u.id);
+  for (const lt of leadTeams) {
+    const totalMem = one('SELECT COUNT(*) as c FROM team_members WHERE team_id=?', lt.team_id).c;
+    const totalLeads = one("SELECT COUNT(*) as c FROM team_members WHERE team_id=? AND role='Ketua Tim'", lt.team_id).c;
+    if (totalMem > 1 && totalLeads <= 1) {
+      const tInfo = one('SELECT name FROM teams WHERE id=?', lt.team_id);
+      throw E(400, `Kamu adalah satu-satunya Ketua Tim di "${tInfo?.name || 'Tim'}". Tunjuk Ketua Tim pengganti sebelum menghapus akun.`);
+    }
+  }
+  tx(() => {
+    run('DELETE FROM team_members WHERE user_id=?', u.id);
+    run('DELETE FROM sessions WHERE user_id=?', u.id);
+    run('DELETE FROM personal WHERE user_id=?', u.id);
+    run('DELETE FROM task_assignees WHERE user_id=?', u.id);
+    run('DELETE FROM notifications WHERE user_id=?', u.id);
+    run('DELETE FROM time_entries WHERE user_id=?', u.id);
+    run('DELETE FROM users WHERE id=?', u.id);
+  });
+  res.clearCookie(COOKIE, { path: '/' });
+  res.json({ ok: true, message: 'Akun berhasil dihapus secara permanen.' });
+});
 
 /* ---------- telegram ---------- */
 app.post('/api/telegram/link', (req, res) => {

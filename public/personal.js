@@ -61,11 +61,46 @@ function pFinance() {
   const inc = sumAmt(ins), exp = sumAmt(outs), bud = S.me.budget, bpct = bud ? Math.round(exp / bud * 100) : 0;
   const cats = Object.entries(outs.reduce((a, t) => (a[t.category] = (a[t.category] || 0) + t.amount, a), {})).map(([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v);
   const top = cats.slice(0, 5); if (cats.length > 5) top.push({ k: 'Kategori lain', v: cats.slice(5).reduce((a, c) => a + c.v, 0) });
+
+  const allTx = PK('tx');
+  const calcW = w => allTx.filter(t => (t.wallet || 'cash') === w).reduce((a, t) => a + (t.status === 'income' ? t.amount : -t.amount), 0);
+  const wCash = calcW('cash'), wBank = calcW('bank'), wEwallet = calcW('ewallet');
+  const wLabels = { cash: '💵 Kas', bank: '🏦 Bank', ewallet: '📱 E-Wallet' };
+
   const list = [...new Set(tx.map(t => t.date))].map(d => {
     const r = tx.filter(t => t.date === d), net = r.reduce((a, t) => a + (t.status === 'income' ? t.amount : -t.amount), 0);
-    return `<div class="txd"><p class="txh"><span>${DOW[parse(d).getDay()].slice(0, 3)}, ${short(d)}</span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${idr(net)}</b></p>${r.map(t => `<button class="txr" data-act="p-edit" data-k="tx" data-id="${t.id}"><span class="txi ${t.status}">${esc((t.category || '?')[0])}</span><span class="ut"><b>${esc(t.title)}</b><small>${esc(t.category)} ${rchip(t)}</small></span><b class="amt ${t.status === 'income' ? 'pos' : 'neg'}">${t.status === 'income' ? '+' : '-'}${idr(t.amount)}</b></button>`).join('')}</div>`;
+    return `<div class="txd"><p class="txh"><span>${DOW[parse(d).getDay()].slice(0, 3)}, ${short(d)}</span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${idr(net)}</b></p>${r.map(t => `<button class="txr" data-act="p-edit" data-k="tx" data-id="${t.id}"><span class="txi ${t.status}">${esc((t.category || '?')[0])}</span><span class="ut"><b>${esc(t.title)}</b><small><span class="pill" style="font-size:10px;padding:1px 5px;background:#f1f5f9;border:1px solid #0f172a">${wLabels[t.wallet] || '💵 Kas'}</span> ${t.recurring ? `<span class="pill" style="font-size:10px;padding:1px 5px;background:#fef3c7;border:1px solid #0f172a">🔄 ${t.recurring}</span>` : ''} ${esc(t.category)} ${rchip(t)}</small></span><b class="amt ${t.status === 'income' ? 'pos' : 'neg'}">${t.status === 'income' ? '+' : '-'}${idr(t.amount)}</b></button>`).join('')}</div>`;
   }).join('');
-  return `<div class="mbar"><button class="ibtn" data-act="pm" data-k="-1" aria-label="Bulan sebelumnya">${ic('chevL')}</button><b>${MON[mo - 1]} ${y}</b><button class="ibtn" data-act="pm" data-k="1" aria-label="Bulan berikutnya">${ic('chevR')}</button><button class="btn sm" data-act="p-budget">${ic('wallet')}Atur budget</button></div>
+
+  return `<div class="mbar" style="flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:4px">
+      <button class="ibtn" data-act="pm" data-k="-1" aria-label="Bulan sebelumnya">${ic('chevL')}</button>
+      <b>${MON[mo - 1]} ${y}</b>
+      <button class="ibtn" data-act="pm" data-k="1" aria-label="Bulan berikutnya">${ic('chevR')}</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn sm" data-act="p-budget">${ic('wallet')}Atur budget</button>
+      <button class="btn sm" data-act="p-transfer">🔄 Transfer Dompet</button>
+      <button class="btn sm" data-act="p-export-csv">${ic('download')}CSV</button>
+      <button class="btn sm primary" data-act="p-export-pdf">${ic('file')}PDF</button>
+    </div>
+  </div>
+
+  <div class="grid g3 mb" style="margin-top:12px">
+    <div class="card" style="padding:14px;background:#fefce8;border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a">
+      <div style="font-size:12px;font-weight:700;color:#854d0e">💵 Kas Tunai (Cash)</div>
+      <div style="font-size:18px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-top:4px">${idr(wCash)}</div>
+    </div>
+    <div class="card" style="padding:14px;background:#eff6ff;border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a">
+      <div style="font-size:12px;font-weight:700;color:#1e40af">🏦 Rekening Bank</div>
+      <div style="font-size:18px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-top:4px">${idr(wBank)}</div>
+    </div>
+    <div class="card" style="padding:14px;background:#f0fdf4;border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a">
+      <div style="font-size:12px;font-weight:700;color:#166534">📱 E-Wallet</div>
+      <div style="font-size:18px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-top:4px">${idr(wEwallet)}</div>
+    </div>
+  </div>
+
   <div class="grid g4 mb">${stat('Saldo', idr(inc - exp), 'Pemasukan − pengeluaran', 1)}${stat('Pemasukan', idr(inc), `${ins.length} transaksi`, 0, '', 'pos')}${stat('Pengeluaran', idr(exp), `${outs.length} transaksi`, 0, '', 'neg')}
   <div class="card stat"><h4>Sisa budget</h4><div class="n sm">${bud ? idr(Math.max(0, bud - exp)) : '—'}</div><small>${bud ? `terpakai ${bpct}% dari ${idr(bud)}` : 'Belum diatur'}</small>${bud ? `<div class="prog ${bpct >= 100 ? 'over' : bpct >= 80 ? 'warn' : ''}"><i style="width:${Math.min(100, bpct)}%"></i></div>` : ''}</div></div>
   <div class="grid g21"><div class="card"><h3>Transaksi</h3>${list || empty(Q ? 'Tidak ada transaksi yang cocok.' : 'Belum ada transaksi bulan ini.', 'tx')}</div>
@@ -95,9 +130,32 @@ function pWish() {
 
 function pTrip() {
   const ts = PK('trip').filter(q).sort((a, b) => (a.status > b.status) - (a.status < b.status) || a.date.localeCompare(b.date));
-  return ts.length ? `<div class="wgrid">${ts.map(t => { const n = diff(t.date), on = n <= 0 && diff(t.date2) >= 0, len = diff(t.date2) - n + 1;
-    return `<button class="card tcard2 ${t.status}" data-act="p-edit" data-k="trip" data-id="${t.id}"><span class="tbadge ${on ? 'on' : ''}">${t.status === 'done' ? 'Selesai' : on ? 'Sedang berlangsung' : cd(t.date)}</span><h4>${ic('plane')}<span>${esc(t.title)}</span></h4><p class="mut">${short(t.date)} – ${short(t.date2)} · ${len} hari</p>${t.amount != null ? `<p class="tb">Budget <b>${idr(t.amount)}</b></p>` : ''}${t.body ? `<p class="wnote">${esc(t.body)}</p>` : ''}${rchip(t)}</button>`; }).join('')}</div>`
-    : empty(Q ? 'Tidak ada yang cocok.' : 'Belum ada rencana perjalanan.', 'trip');
+  return ts.length ? `<div class="wgrid">${ts.map(t => {
+    const n = diff(t.date), on = n <= 0 && diff(t.date2) >= 0, len = diff(t.date2) - n + 1;
+    const td = t.tripData || parseTrip(t.body);
+    const pDone = (td.packingList || []).filter(x => x.done || x.packed).length;
+    const pTotal = (td.packingList || []).length;
+    const itinCount = (td.itinerary || []).length;
+
+    return `<div class="card tcard2 ${t.status}" style="text-align:left">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span class="tbadge ${on ? 'on' : ''}">${t.status === 'done' ? 'Selesai' : on ? 'Sedang berlangsung' : cd(t.date)}</span>
+        <button class="ibtn sm" data-act="p-edit" data-k="trip" data-id="${t.id}" title="Edit trip">${ic('edit')}</button>
+      </div>
+      <h4>${ic('plane')}<span>${esc(t.title)}</span></h4>
+      <p class="mut" style="font-size:12px;margin:4px 0">${short(t.date)} – ${short(t.date2)} · ${len} hari</p>
+      ${t.amount != null ? `<p class="tb">Budget <b>${idr(t.amount)}</b></p>` : ''}
+      ${td.note ? `<p class="wnote" style="font-size:12px;margin:6px 0">${esc(td.note)}</p>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${pTotal ? `<span class="pill" style="font-size:11px;background:#fef3c7;border:1px solid #0f172a">🎒 Packing: ${pDone}/${pTotal}</span>` : ''}
+        ${itinCount ? `<span class="pill" style="font-size:11px;background:#e0f2fe;border:1px solid #0f172a">🗺️ Itinerary: ${itinCount} agenda</span>` : ''}
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn sm" data-act="p-trip-view" data-id="${t.id}">📋 Detail &amp; Checklist</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`
+  : empty(Q ? 'Tidak ada yang cocok.' : 'Belum ada rencana perjalanan.', 'trip');
 }
 
 /* ---------- forms ---------- */
@@ -110,10 +168,26 @@ const chk = (n, l, on) => `<label class="cbx w"><input type="checkbox" name="${n
 const money = (l, it, req) => field(l, `<input class="in" name="amount" type="number" inputmode="decimal" min="${req ? 1 : 0}" step="any" ${req ? 'required' : ''} value="${it.amount ?? ''}" placeholder="0">`);
 function pForm(k, it) {
   switch (k) {
-    case 'tx': { const st = it.status || 'expense';
+    case 'tx': {
+      const st = it.status || 'expense';
       return `<div class="seg2 w" role="radiogroup" aria-label="Jenis transaksi">${[['expense', 'Pengeluaran'], ['income', 'Pemasukan']].map(([v, l]) => `<label><input type="radio" name="status" value="${v}" ${st === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`
         + money('Nominal (Rp)', it, 1) + field('Tanggal', `<input class="in" type="date" name="date" required value="${it.date || off(0)}">`)
-        + txt('title', 'Keterangan', 120, it, 1, 'mis. Makan siang') + field('Kategori', `<select class="in" name="category" data-cat>${catOpts(st, it.category)}</select>`, 1) + remindF(it); }
+        + txt('title', 'Keterangan', 120, it, 1, 'mis. Makan siang')
+        + field('Kategori', `<select class="in" name="category" data-cat>${catOpts(st, it.category)}</select>`, 1)
+        + field('Dompet / Sumber Dana', `<select class="in" name="wallet">
+            <option value="cash" ${(it.wallet || 'cash') === 'cash' ? 'selected' : ''}>💵 Kas Tunai (Cash)</option>
+            <option value="bank" ${it.wallet === 'bank' ? 'selected' : ''}>🏦 Rekening Bank</option>
+            <option value="ewallet" ${it.wallet === 'ewallet' ? 'selected' : ''}>📱 E-Wallet (GoPay/OVO/ShopeePay)</option>
+          </select>`, 1)
+        + field('Transaksi Berulang (Rutin)', `<select class="in" name="recurring">
+            <option value="" ${!it.recurring ? 'selected' : ''}>Bukan Rutin (Sekali Saja)</option>
+            <option value="daily" ${it.recurring === 'daily' ? 'selected' : ''}>🔄 Harian</option>
+            <option value="weekly" ${it.recurring === 'weekly' ? 'selected' : ''}>🔄 Mingguan</option>
+            <option value="monthly" ${it.recurring === 'monthly' ? 'selected' : ''}>🔄 Bulanan (Gaji, Wifi, Tagihan)</option>
+            <option value="yearly" ${it.recurring === 'yearly' ? 'selected' : ''}>🔄 Tahunan (Pajak, Asuransi)</option>
+          </select>`, 1)
+        + remindF(it);
+    }
     case 'note': return txt('title', 'Judul', 120, it, 1) + area('body', 'Isi catatan', 5000, it, 'Tulis apa saja…')
       + `<div class="w"><p class="flab">Warna</p><div class="ncols">${Object.entries(NCOL).map(([c, v]) => `<label><input type="radio" name="color" value="${c}" ${(it.color || 'yellow') === c ? 'checked' : ''}><span style="background:${v}" title="${c}"></span></label>`).join('')}</div></div>`
       + chk('pinned', 'Sematkan di atas', it.pinned) + remindF(it);
@@ -124,20 +198,56 @@ function pForm(k, it) {
       + field('Link (opsional)', `<input class="in" name="url" type="url" maxlength="500" inputmode="url" value="${esc(it.url || '')}" placeholder="https://…">`, 1)
       + field('Target tanggal', `<input class="in" type="date" name="date" value="${it.date || ''}">`, 1) + area('body', 'Catatan', 1000, it)
       + (it.id ? chk('bought', 'Sudah dibeli', it.status === 'bought') : '') + remindF(it);
-    case 'trip': return txt('title', 'Tujuan', 120, it, 1, 'mis. Bali') + field('Berangkat', `<input class="in" type="date" name="date" required value="${it.date || off(14)}">`) + field('Pulang', `<input class="in" type="date" name="date2" required value="${it.date2 || off(17)}">`)
-      + money('Budget (Rp)', it) + area('body', 'Rencana / checklist', 3000, it, 'Tiket, hotel, itinerary…')
-      + (it.id ? chk('done', 'Perjalanan selesai', it.status === 'done') : '') + remindF(it) + '<p class="hint w">Keberangkatan diingatkan otomatis H-7, H-3, H-2, H-1.</p>';
+    case 'trip': {
+      const td = it.tripData || parseTrip(it.body);
+      const packLines = (td.packingList || []).map(x => `${(x.done || x.packed) ? '[x]' : '[ ]'} ${x.text || x.item || x.name || x.title || ''}`).join('\n');
+      const itinLines = (td.itinerary || []).map(x => `${String(x.day || 1).startsWith('Hari') ? x.day : `Hari ${x.day || 1}`}${x.time ? ` ${x.time}` : ''}: ${x.title || x.agenda || x.text || ''}${x.notes ? ` - ${x.notes}` : ''}`).join('\n');
+
+      return txt('title', 'Tujuan', 120, it, 1, 'mis. Liburan ke Bali')
+        + field('Berangkat', `<input class="in" type="date" name="date" required value="${it.date || off(14)}">`)
+        + field('Pulang', `<input class="in" type="date" name="date2" required value="${it.date2 || off(17)}">`)
+        + money('Budget (Rp)', it)
+        + field('Catatan Umum', `<textarea class="in" name="note" maxlength="1000" placeholder="Hotel, akomodasi, catatan penerbangan...">${esc(td.note || '')}</textarea>`, 1)
+        + field('Checklist Barang Bawaan (Packing List)', `<textarea class="in" name="packingListRaw" rows="4" placeholder="Satu barang per baris, contoh:&#10;[x] Paspor&#10;[ ] Charger HP&#10;[ ] Baju hangat">${esc(packLines)}</textarea><small class="mut" style="display:block;margin-top:3px;font-size:11px">Gunakan [x] untuk barang yang sudah masuk tas.</small>`, 1)
+        + field('Itinerary Harian (Daily Rundown)', `<textarea class="in" name="itineraryRaw" rows="4" placeholder="Satu agenda per baris, contoh:&#10;Hari 1 14:00: Check in hotel&#10;Hari 2 09:00: Wisata pantai Kuta&#10;Hari 3 10:00: Belanja cinderamata">${esc(itinLines)}</textarea>`, 1)
+        + (it.id ? chk('done', 'Perjalanan selesai', it.status === 'done') : '') + remindF(it) + '<p class="hint w">Keberangkatan diingatkan otomatis H-7, H-3, H-2, H-1.</p>';
+    }
   }
   return '';
 }
 function pBody(k, fd) {
   const v = n => String(fd.get(n) ?? '').trim(), num2 = n => v(n) === '' ? null : Number(v(n)), on = n => fd.get(n) === 'on';
   const b = {
-    tx: () => ({ status: v('status'), amount: num2('amount'), date: v('date'), title: v('title'), category: v('category') }),
+    tx: () => ({ status: v('status'), amount: num2('amount'), date: v('date'), title: v('title'), category: v('category'), wallet: v('wallet') || 'cash', recurring: v('recurring') || null }),
     note: () => ({ title: v('title'), body: v('body'), color: v('color') || 'yellow', pinned: on('pinned') }),
     ptask: () => ({ title: v('title'), body: v('body'), date: v('date') || null, priority: v('priority'), category: v('category'), ...(pEditing ? { status: on('done') ? 'done' : 'todo' } : {}) }),
     wish: () => ({ title: v('title'), amount: num2('amount'), url: v('url') || null, priority: v('priority'), date: v('date') || null, body: v('body'), ...(pEditing ? { status: on('bought') ? 'bought' : 'want' } : {}) }),
-    trip: () => ({ title: v('title'), date: v('date'), date2: v('date2'), amount: num2('amount'), body: v('body'), ...(pEditing ? { status: on('done') ? 'done' : 'planned' } : {}) }),
+    trip: () => {
+      const rawPack = v('packingListRaw').split('\n').map(l => l.trim()).filter(Boolean);
+      const packingList = rawPack.map((l, idx) => {
+        const done = /^\[x\]/i.test(l);
+        const text = l.replace(/^\[(x| )\]\s*/i, '').trim();
+        return { id: idx + 1, text, done };
+      });
+      const rawItin = v('itineraryRaw').split('\n').map(l => l.trim()).filter(Boolean);
+      const itinerary = rawItin.map((l, idx) => {
+        const m = l.match(/^(?:Hari\s*(\d+))?\s*(?:(\d{1,2}:\d{2}))?\s*:\s*(.*)$/i);
+        if (m) {
+          return { id: idx + 1, day: m[1] ? +m[1] : 1, time: m[2] || '', title: m[3] || l };
+        }
+        return { id: idx + 1, day: 1, time: '', title: l };
+      });
+      const structuredBody = {
+        note: v('note'),
+        packingList,
+        itinerary
+      };
+      return {
+        title: v('title'), date: v('date'), date2: v('date2'), amount: num2('amount'),
+        body: JSON.stringify(structuredBody),
+        ...(pEditing ? { status: on('done') ? 'done' : 'planned' } : {})
+      };
+    },
   }[k]();
   b.remindAt = v('remindAt') ? new Date(v('remindAt')).getTime() : null;
   return b;
@@ -172,6 +282,115 @@ Object.assign(ACT, {
   'p-bought': b => { const w = PD.find(x => x.id === +b.dataset.id); toggle(w.id, { status: w.status === 'want' ? 'bought' : 'want' }, w.status === 'want' ? 'Selamat, keinginan tercapai!' : 'Dikembalikan ke wishlist'); },
   'p-budget': () => form(`${modalHead('Budget pengeluaran bulanan')}<form class="f">${field('Budget per bulan (Rp)', `<input class="in" name="budget" type="number" inputmode="decimal" min="0" step="any" value="${S.me.budget || ''}" placeholder="mis. 3000000">`, 1)}<p class="hint w">Isi 0 untuk mematikan budget.</p><div class="fa w"><button type="button" class="btn" data-act="close">Batal</button><button class="btn primary">Simpan</button></div></form>`,
     async fd => { const r = await mut('PATCH', '/api/me', { budget: Number(fd.get('budget') || 0) }, 'Budget disimpan'); if (r) READY.personal = true; }),
+  'p-export-csv': () => {
+    window.open(`/api/personal/export?format=csv&month=${PM}`, '_blank');
+  },
+  'p-export-pdf': () => {
+    window.open(`/api/personal/export?format=pdf&month=${PM}`, '_blank');
+  },
+  'p-transfer': () => {
+    form(`${modalHead('Transfer Antar Dompet')}<form class="f">
+      ${field('Dompet Asal (Sumber Dana)', `<select class="in" name="fromWallet">
+        <option value="bank">🏦 Rekening Bank</option>
+        <option value="cash">💵 Kas Tunai</option>
+        <option value="ewallet">📱 E-Wallet</option>
+      </select>`, 1)}
+      ${field('Dompet Tujuan', `<select class="in" name="toWallet">
+        <option value="ewallet">📱 E-Wallet</option>
+        <option value="cash">💵 Kas Tunai</option>
+        <option value="bank">🏦 Rekening Bank</option>
+      </select>`, 1)}
+      ${money('Jumlah Transfer (Rp)', {}, 1)}
+      ${field('Tanggal', `<input class="in" type="date" name="date" required value="${off(0)}">`)}
+      ${field('Catatan (opsional)', `<input class="in" name="body" maxlength="300" placeholder="mis. Top up GoPay dari BCA">`, 1)}
+      <div class="fa w"><button type="button" class="btn" data-act="close">Batal</button><button class="btn primary">Kirim Transfer</button></div>
+    </form>`,
+    async (fd, f) => {
+      if (!f.reportValidity()) return;
+      const fromWallet = fd.get('fromWallet');
+      const toWallet = fd.get('toWallet');
+      if (fromWallet === toWallet) return toast('Dompet asal dan tujuan tidak boleh sama');
+      const amount = Number(fd.get('amount') || 0);
+      if (amount <= 0) return toast('Nominal transfer harus lebih dari 0');
+      try {
+        const r = await api('POST', '/api/personal/transfer', {
+          fromWallet, toWallet, amount, date: fd.get('date'), body: fd.get('body')
+        });
+        await LOADERS.personal();
+        READY.personal = true;
+        closeLayer();
+        paint(false);
+        toast(r.message || 'Transfer berhasil dicatat');
+      } catch (e) {
+        if (e.message !== 'auth') toast(e.message);
+      }
+    });
+  },
+  'p-trip-view': b => {
+    const id = +b.dataset.id;
+    const t = PD.find(x => x.id === id);
+    if (!t) return;
+    const td = t.tripData || parseTrip(t.body);
+    const packs = td.packingList || [];
+    const itins = td.itinerary || [];
+
+    const packHtml = packs.length ? packs.map(p => {
+      const isDone = !!(p.done || p.packed);
+      const name = p.text || p.item || p.name || p.title || 'Barang bawaan';
+      return `
+      <label class="cbx" style="padding:6px 0;display:flex;align-items:center;gap:8px;border-bottom:1px dashed #cbd5e1">
+        <input type="checkbox" data-act="p-trip-toggle-pack" data-tid="${t.id}" data-pid="${p.id}" ${isDone ? 'checked' : ''}>
+        <span style="${isDone ? 'text-decoration:line-through;opacity:0.6' : 'font-weight:600'}">${esc(name)}</span>
+      </label>`;
+    }).join('') : '<p class="mut" style="font-size:12.5px">Belum ada barang di checklist packing. Klik Edit untuk menambah.</p>';
+
+    const itinHtml = itins.length ? itins.map(it => {
+      const dayLabel = String(it.day || 1).startsWith('Hari') ? it.day : `Hari ${it.day || 1}`;
+      const title = it.title || it.agenda || it.text || 'Agenda';
+      return `
+      <div style="padding:8px;background:var(--ac-soft);border:1px solid #0f172a;border-radius:10px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700">
+          <span>${esc(dayLabel)}</span>
+          ${it.time ? `<span style="color:var(--ac)">⏰ ${esc(it.time)}</span>` : ''}
+        </div>
+        <p style="font-size:13px;margin-top:3px;font-weight:600">${esc(title)}</p>
+      </div>`;
+    }).join('') : '<p class="mut" style="font-size:12.5px">Belum ada jadwal harian. Klik Edit untuk menambah itinerary.</p>';
+
+    layer('modal', `${modalHead(esc(t.title) + ' · Rincian Travel')}<div class="f" style="max-height:75vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span class="mut" style="font-size:12.5px">📅 ${short(t.date)} – ${short(t.date2)}</span>
+        ${t.amount != null ? `<span class="pill" style="background:#fef3c7;border:1px solid #0f172a">Budget: ${idr(t.amount)}</span>` : ''}
+      </div>
+      ${td.note ? `<p style="font-size:13px;line-height:1.5;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin-bottom:14px">${esc(td.note)}</p>` : ''}
+      
+      <h4 style="font-size:14px;font-family:'Patrick Hand',sans-serif;margin-bottom:6px">🎒 Checklist Barang Bawaan (${packs.filter(x => x.done || x.packed).length}/${packs.length})</h4>
+      <div style="margin-bottom:16px">${packHtml}</div>
+
+      <h4 style="font-size:14px;font-family:'Patrick Hand',sans-serif;margin-bottom:6px">🗺️ Jadwal Harian (Daily Rundown)</h4>
+      <div style="margin-bottom:16px">${itinHtml}</div>
+
+      <div class="fa w">
+        <button type="button" class="btn" data-act="close">Tutup</button>
+        <button type="button" class="btn primary" data-act="p-edit" data-k="trip" data-id="${t.id}">${ic('edit')} Edit Rencana</button>
+      </div>
+    </div>`);
+  },
+  'p-trip-toggle-pack': async b => {
+    const tid = +b.dataset.tid, pid = b.dataset.pid;
+    const t = PD.find(x => x.id === tid);
+    if (!t) return;
+    const td = t.tripData || parseTrip(t.body);
+    const it = (td.packingList || []).find(x => String(x.id) === String(pid));
+    if (!it) return;
+    it.done = b.checked;
+    it.packed = b.checked;
+    const name = it.text || it.item || it.name || it.title || 'Barang';
+    await api('PATCH', `/api/personal/${tid}`, { body: JSON.stringify(td) });
+    await LOADERS.personal();
+    READY.personal = true;
+    toast(b.checked ? `"${name}" sudah masuk packing` : `"${name}" belum packing`);
+  }
 });
 // keep category list in sync with income/expense switch
 document.addEventListener('change', e => {

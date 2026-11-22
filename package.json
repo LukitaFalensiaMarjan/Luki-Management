@@ -5,7 +5,8 @@
   "description": "LUKI MANAGEMENT - project management with auth, chat, PDF reports and Telegram reminders",
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
-    "seed": "node --disable-warning=ExperimentalWarning server/seed.js"
+    "seed": "node --disable-warning=ExperimentalWarning server/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning test/roadmap.test.js"
   },
   "engines": {
     "node": ">=22.13"

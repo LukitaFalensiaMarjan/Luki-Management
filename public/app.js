@@ -193,7 +193,7 @@ function vDash() {
     const scopeBadge = team 
       ? `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:var(--ac-soft);color:var(--txt);border:1px solid #0f172a">👥 ${esc(team.name)}</span>` 
       : `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:#f1f5f9;color:#64748b;border:1px dashed #94a3b8">🔒 Pribadi</span>`;
-    return `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(p.name)}</b>${scopeBadge}</div><small>Due date: ${short(p.due)}</small></div>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me || S.me.admin ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button><button class="ibtn sm" data-act="edit-proj" data-id="${p.id}" title="Edit project">${ic('edit')}</button><button class="ibtn sm" data-act="del-proj" data-id="${p.id}" title="Hapus project" style="color:var(--bad)">${ic('trash')}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
+    return `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(p.name)}</b>${scopeBadge}</div><small>Due date: ${short(p.due)}</small></div><button class="ibtn sm" data-act="project-chat" data-id="${p.id}" title="Diskusi / Obrolan Project">${ic('chat')}</button>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me || S.me.admin ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button><button class="ibtn sm" data-act="edit-proj" data-id="${p.id}" title="Edit project">${ic('edit')}</button><button class="ibtn sm" data-act="del-proj" data-id="${p.id}" title="Hapus project" style="color:var(--bad)">${ic('trash')}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
   };
   const opts = P.filter(p => p.status !== 'ended').map(p => `<option value="${p.id}" ${TT.pid === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
   return head('Dashboard', 'Everything your team is shipping, in one calm place.', `<button class="btn primary" data-act="add-project">${ic('plus')}Add Project</button><button class="btn" data-act="import">${ic('upload')}Import Data</button>`) +
@@ -272,6 +272,7 @@ function vTeam() {
   const allDivs = ['All', ...new Set(curMembers.map(m => m.div).filter(Boolean))];
   return head('Team', 'Kelola multi-tim, anggota, peran spesifik tiap tim, dan status online.',
     `<div class="fa" style="margin:0">
+      <button class="btn" data-act="team-chat" data-id="${curTeam.id}">${ic('chat')} Diskusi Tim</button>
       <button class="btn" data-act="join-team-modal">🔑 Gabung Tim</button>
       <button class="btn" data-act="new-team">${ic('plus')} Buat Tim Baru</button>
       <button class="btn primary" data-act="invite-team" data-team="${curTeam.id}">${ic('mail')} Undang ke Tim</button>
@@ -434,9 +435,45 @@ function vAna() {
 }
 
 function vSet() {
-  const nav = [['security', 'shield', 'Kata Sandi'], ['notif', 'bellS', 'Notifications'], ['look', 'palette', 'Appearance']].map(([k, i, l]) => `<button class="${ST === k ? 'on' : ''}" data-act="st" data-k="${k}">${ic(i)}${l}</button>`).join('');
+  const nav = [
+    ['security', 'shield', 'Kata Sandi'],
+    ['sessions', 'clock', 'Sesi Aktif'],
+    ['notif', 'bellS', 'Notifications'],
+    ['look', 'palette', 'Appearance'],
+    ['danger', 'trash', 'Hapus Akun']
+  ].map(([k, i, l]) => `<button class="${ST === k ? 'on' : ''}" data-act="st" data-k="${k}">${ic(i)}${l}</button>`).join('');
   let p; const m = S.me;
-  if (ST === 'notif') {
+  if (ST === 'sessions') {
+    p = `<h2>Manajemen Sesi Login</h2>
+      <p>Lihat sesi login aktif kamu dan keluar dari perangkat lain jika diperlukan.</p>
+      <div id="sessionList" style="margin-bottom:16px"><div class="skel"><i></i><i></i></div></div>
+      <div class="fa w">
+        <button class="btn danger" data-act="logout-others">Keluar dari Semua Perangkat Lain</button>
+      </div>`;
+    setTimeout(async () => {
+      const el = $('#sessionList'); if (!el) return;
+      try {
+        const list = await api('GET', '/api/me/sessions');
+        el.innerHTML = list.map(s => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border:2px solid #0f172a;border-radius:12px;margin-bottom:8px">
+            <div>
+              <b style="font-size:13px">${s.isCurrent ? '📱 Sesi Perangkat Ini (Saat Ini)' : '💻 Sesi Perangkat Lain'}</b>
+              <small class="mut" style="display:block;margin-top:2px;font-size:11.5px">Kedaluwarsa: ${new Date(s.expiresAt).toLocaleDateString('id-ID')}</small>
+            </div>
+            ${s.isCurrent ? '<span class="pill s-ended">Aktif Sekarang</span>' : '<span class="pill" style="background:#f1f5f9;border:1px solid #cbd5e1">Tersimpan</span>'}
+          </div>
+        `).join('') || '<p class="mut">Tidak ada sesi lain.</p>';
+      } catch (e) { el.innerHTML = '<p class="mut">Gagal memuat sesi.</p>'; }
+    }, 50);
+  } else if (ST === 'danger') {
+    p = `<h2>Zona Bahaya: Hapus Akun</h2>
+      <p style="color:#b91c1c;line-height:1.6">Menghapus akun Anda akan menghapus seluruh data pribadi, catatan, transaksi finansial, dan mengeluarkan Anda dari semua tim secara permanen. Tindakan ini tidak dapat dibatalkan.</p>
+      <div style="background:#fef2f2;border:2px dashed #ef4444;border-radius:12px;padding:16px;margin:16px 0">
+        <h4 style="color:#991b1b;margin-bottom:6px">Konfirmasi Penghapusan Akun</h4>
+        <p style="font-size:12.5px;color:#7f1d1d;margin-bottom:12px">Pastikan Anda telah mencadangkan data penting Anda sebelum melanjutkan.</p>
+        <button class="btn primary danger-bg" data-act="delete-account-modal">Hapus Akun Saya Secara Permanen</button>
+      </div>`;
+  } else if (ST === 'notif') {
     const n = m.notif, rows = [['assign', 'Task assignments', 'Saat kamu ditugaskan ke task baru'], ['due', 'Deadline reminders', 'Pengingat H-7, H-3, H-2 dan H-1 untuk task dan project'], ['chat', 'Chat messages', 'Teruskan pesan baru ke Telegram saat kamu offline'], ['report', 'Project reports', 'Laporan PDF saat project selesai'], ['personal', 'Pengingat pribadi', 'Catatan, tugas pribadi, tagihan, wishlist, dan travel']];
     const tgc = !S.tg.enabled ? `<p class="mut" style="font-size:12px">Bot Telegram belum dikonfigurasi di server. Isi <code>TELEGRAM_BOT_TOKEN</code> di file <code>.env</code> lalu restart server.</p>`
       : m.tg ? `<div class="tg-st"><span class="pill s-ended">Connected</span><div class="fa" style="margin:0"><button class="btn sm" data-act="tg-test">Send test</button><button class="btn sm danger" data-act="tg-unlink">Disconnect</button></div></div>`
@@ -808,6 +845,10 @@ function connect() {
     else if (d.type === 'notif') { toast(d.text); load().then(post).catch(() => {}); }
     else if (d.type === 'tg') { load().then(() => { if ($('.ov.modal')) closeLayer(); if (cur === 'settings') paint(false); toast(d.linked ? 'Telegram terhubung' : 'Telegram terputus'); }); }
     else if (d.type === 'message') onMessage(d.message);
+    else if (d.type === 'channel_message') {
+      if (chat && chat.channel === d.channel) addMsg(d.message);
+      else if (d.message.from_id !== S.me.id) toast(`[${d.channel.startsWith('team:') ? 'Tim' : 'Project'}] ${d.message.from_name}: ${d.message.body.slice(0, 50)}`);
+    }
     else if (d.type === 'task_comment') { if (activeDetailTaskId === d.taskId) refreshTaskDetail(d.taskId); }
     else if (d.type === 'logout') { showAuth(); toast('Sesi kamu diakhiri oleh admin'); }
     else if (d.type === 'personal') { READY.personal = false; if (cur === 'personal' && !busy()) paint(false); }
@@ -826,11 +867,13 @@ function onMessage(m) {
 function msgHtml(m, prev) {
   const mine = m.from_id === S.me.id, d = iso(new Date(m.created_at));
   const sep = !prev || iso(new Date(prev.created_at)) !== d ? `<div class="msep">${d === off(0) ? 'Today' : short(d)}</div>` : '';
-  return `${sep}<div class="msg ${mine ? 'me' : ''}" data-id="${m.id}"><p>${esc(m.body)}</p><small>${hhmm(m.created_at)}</small></div>`;
+  const senderInfo = !mine && (m.channel || m.from_name) ? `<small style="font-size:10.5px;font-weight:700;color:var(--ac);display:block;margin-bottom:2px">${esc(m.from_name || mem(m.from_id)?.name || 'Member')}</small>` : '';
+  return `${sep}<div class="msg ${mine ? 'me' : ''}" data-id="${m.id}">${senderInfo}<p>${esc(m.body)}</p><small>${hhmm(m.created_at)}</small></div>`;
 }
 function addMsg(m) {
-  if (!chat || chat.msgs.some(x => x.id === m.id)) return;
-  const box = $('#msgs'); const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || m.from_id === S.me.id;
+  if (!chat || (chat.channel ? chat.channel !== m.channel : (chat.id !== m.from_id && chat.id !== m.to_id))) return;
+  const box = $('#msgs'); if (!box) return;
+  const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || m.from_id === S.me.id;
   box.querySelector('.empty')?.remove(); box.insertAdjacentHTML('beforeend', msgHtml(m, chat.msgs[chat.msgs.length - 1])); chat.msgs.push(m);
   if (near) box.scrollTop = box.scrollHeight;
 }
@@ -843,6 +886,20 @@ async function openChat(id) {
   if (!chat || chat.id !== id) return;
   box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada pesan. Sapa dulu!</div>'; box.scrollTop = box.scrollHeight;
   const send = async () => { const body = ta.value.trim(); if (!body) return; ta.value = ''; ta.style.height = ''; try { addMsg(await api('POST', '/api/messages', { to: id, body })); } catch (e) { if (e.message !== 'auth') toast(e.message); ta.value = body; } };
+  $('#cf', o).addEventListener('submit', e => { e.preventDefault(); send(); });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
+  ta.focus();
+}
+
+async function openChannelChat(channel, title, subtitle = '') {
+  const o = layer('drawer', `<div class="chat"><div class="chat-h"><div class="pico" style="width:36px;height:36px;border-radius:10px;font-size:18px;display:flex;align-items:center;justify-content:center;background:var(--ac-soft);border:2px solid #0f172a;font-weight:800;color:var(--ac)">#</div><div><h3>${esc(title)}</h3><small class="mut">${esc(subtitle || 'Obrolan Channel')}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan ke #${esc(title)}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
+  chat = { channel, msgs: [] };
+  const box = $('#msgs', o), ta = $('textarea', o);
+  try { chat.msgs = await api('GET', '/api/messages/channel/' + encodeURIComponent(channel)); } catch (e) { if (e.message !== 'auth') toast(e.message); return; }
+  if (!chat || chat.channel !== channel) return;
+  box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada obrolan di channel ini. Mulai diskusi!</div>'; box.scrollTop = box.scrollHeight;
+  const send = async () => { const body = ta.value.trim(); if (!body) return; ta.value = ''; ta.style.height = ''; try { const sent = await api('POST', '/api/messages/channel/' + encodeURIComponent(channel), { body }); addMsg(sent); } catch (e) { if (e.message !== 'auth') toast(e.message); ta.value = body; } };
   $('#cf', o).addEventListener('submit', e => { e.preventDefault(); send(); });
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
@@ -1367,6 +1424,48 @@ const ACT = {
       );
     }
   },
+  'project-chat': b => {
+    const pid = +b.dataset.id;
+    const p = S.projects.find(x => x.id === pid);
+    if (!p) return;
+    openChannelChat('project:' + pid, p.name, 'Diskusi Tim Proyek');
+  },
+  'team-chat': b => {
+    const tid = +b.dataset.id;
+    const t = S.teams.find(x => x.id === tid) || S.teams?.[0];
+    if (!t) return;
+    openChannelChat('team:' + tid, t.name, 'Diskusi Umum Tim');
+  },
+  'logout-others': async () => {
+    try {
+      const r = await api('POST', '/api/me/sessions/logout-others');
+      toast(r.message || 'Berhasil keluar dari semua perangkat lain');
+      paint(false);
+    } catch (e) {
+      if (e.message !== 'auth') toast(e.message);
+    }
+  },
+  'delete-account-modal': () => {
+    const needPw = S.me.hasPassword;
+    form(`${modalHead('Konfirmasi Hapus Akun')}<form class="f">
+      <p style="color:var(--bad);font-size:13px;line-height:1.5;margin-bottom:12px"><b>Peringatan:</b> Akun Anda beserta seluruh data pribadi akan dihapus permanen.</p>
+      ${needPw ? field('Masukkan Kata Sandi', '<input class="in" type="password" name="password" required placeholder="Kata sandi akunmu">', 1) : '<p class="mut" style="font-size:12px">Akun Google: klik tombol di bawah untuk konfirmasi penghapusan akun.</p>'}
+      <div class="fa w">
+        <button type="button" class="btn" data-act="close">Batal</button>
+        <button class="btn primary danger-bg">Ya, Hapus Akun Permanen</button>
+      </div>
+    </form>`,
+    async fd => {
+      try {
+        await api('DELETE', '/api/me/account', { password: fd.get('password') || '' });
+        closeLayer();
+        toast('Akun berhasil dihapus. Sampai jumpa!');
+        showAuth();
+      } catch (e) {
+        if (e.message !== 'auth') toast(e.message);
+      }
+    });
+  },
   chat: b => openChat(+b.dataset.id),
   profile: b => {
     const m = mem(+b.dataset.id), ts = S.tasks.filter(t => t.who.includes(m.id)), o = ts.filter(t => t.stage !== 'done');
@@ -1719,6 +1818,32 @@ document.addEventListener('dragstart', e => { const c = e.target.closest?.('.tca
 document.addEventListener('dragend', () => { $$('.drag,.over').forEach(x => x.classList.remove('drag', 'over')); dragId = null; if (dirty) setTimeout(refresh, 200); });
 document.addEventListener('dragover', e => { const c = e.target.closest?.('.col'); if (!c || !dragId) return; e.preventDefault(); $$('.col.over').forEach(x => x !== c && x.classList.remove('over')); c.classList.add('over'); });
 document.addEventListener('drop', e => { const c = e.target.closest?.('.col'); if (!c || !dragId) return; e.preventDefault(); const id = dragId; dragId = null; $$('.drag,.over').forEach(x => x.classList.remove('drag', 'over')); moveTask(id, c.dataset.stage); });
+
+/* touch drag & drop for mobile devices */
+let touchCard = null;
+document.addEventListener('touchstart', e => {
+  const c = e.target.closest?.('.tcard');
+  if (!c || e.target.closest?.('.mn')) return;
+  touchCard = c;
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!touchCard) return;
+  const touch = e.touches[0];
+  const col = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.col');
+  $$('.col.over').forEach(x => x !== col && x.classList.remove('over'));
+  if (col) col.classList.add('over');
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!touchCard) return;
+  const touch = e.changedTouches[0];
+  const col = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.col');
+  $$('.col.over').forEach(x => x.classList.remove('over'));
+  if (col && col.dataset.stage) {
+    const id = +touchCard.dataset.id;
+    moveTask(id, col.dataset.stage);
+  }
+  touchCard = null;
+}, { passive: true });
 /* analytics chart hover */
 document.addEventListener('pointermove', e => {
   const w = e.target.closest?.('.lc-wrap'); if (!w || !AD) return;
