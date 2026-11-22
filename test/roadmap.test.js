@@ -239,6 +239,21 @@ async function runTests() {
     assert(res.statusCode === 200, 'GET /api/messages/channel/team:1 returns 200');
     const msgs = res.json();
     assert(Array.isArray(msgs) && msgs.some(m => m.id === postedMsg.id), 'Channel message list contains our posted message');
+
+    // Post reply to the message (WhatsApp-style quote reply test)
+    res = await request({
+      hostname: '127.0.0.1',
+      port: 3000,
+      path: '/api/messages/channel/team:1',
+      method: 'POST',
+      headers: authHeaders
+    }, {
+      body: 'Ini balasan dari pesan sebelumnya!',
+      replyToId: postedMsg.id
+    });
+    assert(res.statusCode === 200 || res.statusCode === 201, 'POST /api/messages/channel/team:1 with replyToId returns 201');
+    const replyMsg = res.json();
+    assert(replyMsg && replyMsg.reply_to_id === postedMsg.id && replyMsg.reply_body.includes('pilar 4'), 'Reply message carries correct reply_to_id and reply_body metadata');
   } catch (err) {
     assert(false, `Channel chat test error: ${err.message}`);
   }

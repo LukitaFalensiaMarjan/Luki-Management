@@ -828,10 +828,13 @@ app.get('/api/messages/channel/:channel', (req, res) => {
   const ch = String(req.params.channel || '');
   if (!checkChannelAccess(req.user, ch)) throw E(403, 'Kamu tidak memiliki akses ke channel ini');
   const rows = all(`
-    SELECT m.id, m.from_id, m.channel, m.body, m.created_at,
-           u.name as from_name, u.avatar as from_avatar, u.username as from_username
+    SELECT m.id, m.from_id, m.channel, m.body, m.created_at, m.reply_to_id,
+           u.name as from_name, u.avatar as from_avatar, u.username as from_username,
+           rm.body as reply_body, ru.name as reply_name
     FROM messages m
     JOIN users u ON u.id=m.from_id
+    LEFT JOIN messages rm ON rm.id=m.reply_to_id
+    LEFT JOIN users ru ON ru.id=rm.from_id
     WHERE m.channel=?
     ORDER BY m.id ASC
     LIMIT 200
@@ -843,8 +846,20 @@ app.post('/api/messages/channel/:channel', (req, res) => {
   const ch = String(req.params.channel || '');
   if (!checkChannelAccess(req.user, ch)) throw E(403, 'Kamu tidak memiliki akses ke channel ini');
   const body = s(req.body?.body, 2000);
+  const replyToId = req.body?.replyToId ? int(req.body.replyToId) : null;
   if (limited('msg' + req.user.id, 60)) throw E(429, 'Terlalu banyak pesan, tunggu sebentar');
-  const r = run('INSERT INTO messages(from_id,to_id,channel,body,created_at) VALUES(?,?,?,?,?)', req.user.id, req.user.id, ch, body, now());
+
+  let replyMeta = null;
+  if (replyToId) {
+    replyMeta = one(`
+      SELECT m.body, u.name
+      FROM messages m
+      JOIN users u ON u.id=m.from_id
+      WHERE m.id=? AND m.channel=?
+    `, replyToId, ch);
+  }
+
+  const r = run('INSERT INTO messages(from_id,to_id,channel,body,created_at,reply_to_id) VALUES(?,?,?,?,?,?)', req.user.id, req.user.id, ch, body, now(), replyMeta ? replyToId : null);
   const m = {
     id: r.lastInsertRowid,
     from_id: req.user.id,
@@ -853,7 +868,10 @@ app.post('/api/messages/channel/:channel', (req, res) => {
     created_at: now(),
     from_name: req.user.name,
     from_avatar: req.user.avatar,
-    from_username: req.user.username
+    from_username: req.user.username,
+    reply_to_id: replyMeta ? replyToId : null,
+    reply_name: replyMeta ? replyMeta.name : null,
+    reply_body: replyMeta ? replyMeta.body : null
   };
   const members = channelParticipants(ch);
   for (const uid of members) {
@@ -864,16 +882,48 @@ app.post('/api/messages/channel/:channel', (req, res) => {
 
 app.get('/api/messages/:uid', (req, res) => {
   const o = int(req.params.uid), me = req.user.id;
-  const rows = all("SELECT id,from_id,to_id,body,created_at FROM (SELECT * FROM messages WHERE ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?)) AND (channel IS NULL OR channel='') ORDER BY id DESC LIMIT 200) ORDER BY id", me, o, o, me);
+  const rows = all(`
+    SELECT m.id, m.from_id, m.to_id, m.body, m.created_at, m.reply_to_id,
+           rm.body as reply_body, ru.name as reply_name
+    FROM (
+      SELECT * FROM messages
+      WHERE ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?)) AND (channel IS NULL OR channel='')
+      ORDER BY id DESC LIMIT 200
+    ) m
+    LEFT JOIN messages rm ON rm.id=m.reply_to_id
+    LEFT JOIN users ru ON ru.id=rm.from_id
+    ORDER BY m.id ASC
+  `, me, o, o, me);
   run('UPDATE messages SET read_at=? WHERE to_id=? AND from_id=? AND read_at IS NULL', now(), me, o);
   res.json(rows);
 });
 app.post('/api/messages', (req, res) => {
   const to = int(req.body?.to), body = s(req.body?.body, 2000);
+  const replyToId = req.body?.replyToId ? int(req.body.replyToId) : null;
   if (to === req.user.id || !one('SELECT id FROM users WHERE id=? AND disabled=0', to)) throw E(400, 'Penerima tidak valid');
   if (limited('msg' + req.user.id, 60)) throw E(429, 'Terlalu banyak pesan, tunggu sebentar');
-  const r = run('INSERT INTO messages(from_id,to_id,body,created_at) VALUES(?,?,?,?)', req.user.id, to, body, now());
-  const m = { id: r.lastInsertRowid, from_id: req.user.id, to_id: to, body, created_at: now() };
+
+  let replyMeta = null;
+  if (replyToId) {
+    replyMeta = one(`
+      SELECT m.body, u.name
+      FROM messages m
+      JOIN users u ON u.id=m.from_id
+      WHERE m.id=?
+    `, replyToId);
+  }
+
+  const r = run('INSERT INTO messages(from_id,to_id,body,created_at,reply_to_id) VALUES(?,?,?,?,?,?)', req.user.id, to, body, now(), replyMeta ? replyToId : null);
+  const m = {
+    id: r.lastInsertRowid,
+    from_id: req.user.id,
+    to_id: to,
+    body,
+    created_at: now(),
+    reply_to_id: replyMeta ? replyToId : null,
+    reply_name: replyMeta ? replyMeta.name : null,
+    reply_body: replyMeta ? replyMeta.body : null
+  };
   pushUser(to, { type: 'message', message: m }); pushUser(req.user.id, { type: 'message', message: m });
   notify(to, 'chat', `${req.user.name}:${body.slice(0, 300)}`);
   res.status(201).json(m);

@@ -61,6 +61,7 @@ const ICON = {
   alarm: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3L2 6M22 6l-3-3"/>',
   attach: '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
   volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>',
+  reply: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v1.5"/>',
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
@@ -174,12 +175,38 @@ function formatMsgBody(text) {
   return escaped.replace(/(\/uploads\/[a-zA-Z0-9_\-\.]+)/g, (match, path) => {
     const ext = path.split('.').pop().toLowerCase();
     const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+    const cleanName = path.split('/').pop().replace(/^up_\d+_[a-f0-9]+-?/, '');
     if (isImg) {
-      return `<br><a href="${path}" target="_blank" rel="noopener"><img src="${path}" alt="Attachment" style="max-width:240px;max-height:180px;border-radius:8px;border:2px solid #0f172a;display:block;margin-top:6px" /></a>`;
+      return `<img src="${path}" class="chat-img-thumb" data-act="open-lightbox" data-src="${path}" data-name="${esc(cleanName)}" alt="${esc(cleanName)}" title="Klik untuk memperbesar foto" />`;
     }
-    const cleanName = path.split('/').pop().replace(/^\d+-[a-f0-9]+-/, '');
-    return `<br><a href="${path}" target="_blank" rel="noopener" class="pill" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;background:#f1f5f9;border:1.5px solid #0f172a;text-decoration:none;font-weight:600;font-size:12px;color:var(--txt)">${ic('file')} ${esc(cleanName)} ${ic('download')}</a>`;
+    return `
+      <div class="doc-card">
+        <div class="doc-card-icon">${ic('file')}</div>
+        <div class="doc-card-meta">
+          <b class="doc-card-name" title="${esc(cleanName)}">${esc(cleanName)}</b>
+          <span class="doc-card-sub">${ext.toUpperCase()} Dokumen</span>
+        </div>
+        <a href="${path}" download="${esc(cleanName)}" target="_blank" rel="noopener" class="doc-card-btn" title="Unduh berkas">${ic('download')}</a>
+      </div>
+    `;
   });
+}
+
+function openLightbox(src, title = 'Gambar') {
+  layer('modal', `
+    <div class="lightbox-wrap">
+      <div class="mh" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+        <h3 style="font-size:16px;margin:0">${esc(title)}</h3>
+        <div style="display:flex;gap:6px">
+          <a href="${src}" download="${esc(title)}" class="btn sm primary" style="font-size:12px">${ic('download')} Unduh</a>
+          <button class="x" type="button" data-act="close" aria-label="Tutup">${ic('x')}</button>
+        </div>
+      </div>
+      <div class="lightbox-img-box">
+        <img src="${src}" alt="${esc(title)}" class="lightbox-img" />
+      </div>
+    </div>
+  `);
 }
 let lastFocus = null;
 function layer(kind, html) {
@@ -938,71 +965,303 @@ function onMessage(m) {
 function msgHtml(m, prev) {
   const mine = m.from_id === S.me.id, d = iso(new Date(m.created_at));
   const sep = !prev || iso(new Date(prev.created_at)) !== d ? `<div class="msep">${d === off(0) ? 'Today' : short(d)}</div>` : '';
-  const senderInfo = !mine && (m.channel || m.from_name) ? `<small style="font-size:10.5px;font-weight:700;color:var(--ac);display:block;margin-bottom:2px">${esc(m.from_name || mem(m.from_id)?.name || 'Member')}</small>` : '';
-  return `${sep}<div class="msg ${mine ? 'me' : ''}" data-id="${m.id}">${senderInfo}<div class="msg-cnt">${formatMsgBody(m.body)}</div><small>${hhmm(m.created_at)}</small></div>`;
+  const senderName = m.from_name || mem(m.from_id)?.name || (mine ? 'Kamu' : 'Member');
+  const senderInfo = !mine && (m.channel || m.from_name) ? `<small class="msg-sender">${esc(senderName)}</small>` : '';
+
+  const quoteHtml = m.reply_to_id ? `
+    <div class="msg-quote" data-goto="${m.reply_to_id}" title="Klik untuk lompat ke pesan asli">
+      <div class="msg-quote-cnt">
+        <b class="msg-quote-name">${esc(m.reply_name || 'Balasan')}</b>
+        <div class="msg-quote-txt">${esc(m.reply_body ? m.reply_body.slice(0, 90) : 'Pesan')}</div>
+      </div>
+    </div>
+  ` : '';
+
+  return `${sep}<div class="msg ${mine ? 'me' : ''}" id="msg-${m.id}" data-id="${m.id}">
+    <button type="button" class="msg-reply-trigger" data-act="trigger-reply" data-id="${m.id}" data-who="${esc(senderName)}" data-snippet="${esc((m.body || '').slice(0, 80))}" title="Balas pesan">${ic('reply')}</button>
+    ${senderInfo}
+    ${quoteHtml}
+    <div class="msg-cnt">${formatMsgBody(m.body)}</div>
+    <small class="msg-time">${hhmm(m.created_at)}</small>
+  </div>`;
 }
+
 function addMsg(m) {
   if (!chat || (chat.channel ? chat.channel !== m.channel : (chat.id !== m.from_id && chat.id !== m.to_id))) return;
+  if (chat.msgs.some(x => x.id === m.id)) return; // DEDUPLICATION: Mencegah bug pesan terkirim 2x
   const box = $('#msgs'); if (!box) return;
-  const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || m.from_id === S.me.id;
-  box.querySelector('.empty')?.remove(); box.insertAdjacentHTML('beforeend', msgHtml(m, chat.msgs[chat.msgs.length - 1])); chat.msgs.push(m);
+  const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120 || m.from_id === S.me.id;
+  box.querySelector('.empty')?.remove();
+  box.insertAdjacentHTML('beforeend', msgHtml(m, chat.msgs[chat.msgs.length - 1]));
+  chat.msgs.push(m);
   if (near) box.scrollTop = box.scrollHeight;
 }
-async function openChat(id) {
-  const m = mem(id); if (!m) return;
-  const o = layer('drawer', `<div class="chat"><div class="chat-h">${av(m, 'lg')}<div><h3>${esc(m.name)}</h3><small class="mut"><i class="st-d ${m.on ? 'on' : ''}"></i>${m.on ? 'Online' : 'Offline'} · ${esc(m.role)}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><input type="file" id="chatFileInput" style="display:none"><button type="button" class="btn sm" id="btnChatAttach" title="Lampirkan berkas atau foto" aria-label="Lampirkan berkas" style="padding:10px 11px">${ic('attach')}</button><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan untuk ${esc(m.name.split(' ')[0])}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
-  chat = { id, msgs: [] }; S.unread[id] = 0; post();
+
+function setupChatDrawer(o, sendHandler) {
   const box = $('#msgs', o), ta = $('textarea', o), fi = $('#chatFileInput', o), btnAtt = $('#btnChatAttach', o);
+  const repWrap = $('#chatReplyBarWrap', o), attWrap = $('#chatAttachPreviewWrap', o);
+  let activeReply = null;
+  let activeAttachment = null;
+  let isSending = false;
+
+  const renderReplyBar = () => {
+    if (!activeReply) { repWrap.innerHTML = ''; return; }
+    repWrap.innerHTML = `
+      <div class="chat-reply-bar">
+        <div class="chat-reply-info">
+          <span class="chat-reply-who">Membalas ke ${esc(activeReply.who)}</span>
+          <span class="chat-reply-snippet">${esc(activeReply.snippet || 'Pesan')}</span>
+        </div>
+        <button type="button" class="x sm" data-act="cancel-reply" aria-label="Batal balas">${ic('x')}</button>
+      </div>
+    `;
+  };
+
+  const renderAttachBar = () => {
+    if (!activeAttachment) { attWrap.innerHTML = ''; return; }
+    const preview = activeAttachment.isImg
+      ? `<img src="${activeAttachment.url}" class="chat-attach-thumb" alt="Preview" />`
+      : `<div class="chat-attach-file-icon">${ic('file')}</div>`;
+    attWrap.innerHTML = `
+      <div class="chat-attach-preview">
+        ${preview}
+        <div class="chat-attach-info">
+          <span class="chat-attach-name">${esc(activeAttachment.name)}</span>
+          <span class="chat-attach-size">${activeAttachment.ext.toUpperCase()} · ${Math.round(activeAttachment.size / 1024)} KB</span>
+        </div>
+        <button type="button" class="x sm" data-act="cancel-attach" aria-label="Hapus lampiran">${ic('x')}</button>
+      </div>
+    `;
+  };
+
+  const handleUpload = async file => {
+    if (!file) return;
+    try {
+      if (btnAtt) btnAtt.disabled = true;
+      toast('Mengunggah berkas…');
+      const res = await uploadFileBlob(file);
+      const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(res.ext);
+      activeAttachment = { url: res.url, name: file.name, size: file.size, ext: res.ext, isImg };
+      renderAttachBar();
+      ta.focus();
+      toast('Berkas siap dikirim!');
+    } catch (err) {
+      toast(err.message || 'Gagal mengunggah berkas');
+    } finally {
+      if (btnAtt) btnAtt.disabled = false;
+      if (fi) fi.value = '';
+    }
+  };
+
   if (fi && btnAtt) {
     btnAtt.onclick = () => fi.click();
-    fi.onchange = async () => {
-      const f = fi.files?.[0]; if (!f) return;
-      try {
-        btnAtt.disabled = true; toast('Mengunggah berkas…');
-        const res = await uploadFileBlob(f);
-        ta.value = (ta.value ? ta.value + '\n' : '') + res.url;
-        ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
-        ta.focus(); toast('Berkas berhasil dilampirkan!');
-      } catch (err) { toast(err.message || 'Gagal mengunggah berkas'); }
-      finally { btnAtt.disabled = false; fi.value = ''; }
-    };
+    fi.onchange = () => handleUpload(fi.files?.[0]);
   }
-  try { chat.msgs = await api('GET', '/api/messages/' + id); } catch (e) { if (e.message !== 'auth') toast(e.message); return; }
-  if (!chat || chat.id !== id) return;
-  box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada pesan. Sapa dulu!</div>'; box.scrollTop = box.scrollHeight;
-  const send = async () => { const body = ta.value.trim(); if (!body) return; ta.value = ''; ta.style.height = ''; try { addMsg(await api('POST', '/api/messages', { to: id, body })); } catch (e) { if (e.message !== 'auth') toast(e.message); ta.value = body; } };
-  $('#cf', o).addEventListener('submit', e => { e.preventDefault(); send(); });
-  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
-  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
+
+  // Paste gambar atau dokumen langsung dari clipboard (seperti WhatsApp)
+  ta.addEventListener('paste', e => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleUpload(file);
+          break;
+        }
+      }
+    }
+  });
+
+  // Drag-and-drop berkas ke area chat
+  const chatEl = $('.chat', o);
+  let dragOverlay = null;
+  chatEl.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragOverlay) {
+      dragOverlay = document.createElement('div');
+      dragOverlay.className = 'chat-drag-overlay';
+      dragOverlay.textContent = 'Lepaskan berkas di sini untuk mengirim';
+      chatEl.appendChild(dragOverlay);
+    }
+  });
+  chatEl.addEventListener('dragleave', e => {
+    if (e.relatedTarget && chatEl.contains(e.relatedTarget)) return;
+    dragOverlay?.remove();
+    dragOverlay = null;
+  });
+  chatEl.addEventListener('drop', e => {
+    e.preventDefault();
+    dragOverlay?.remove();
+    dragOverlay = null;
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleUpload(file);
+  });
+
+  // Delegated clicks inside chat drawer
+  o.addEventListener('click', e => {
+    const repBtn = e.target.closest('[data-act="trigger-reply"]');
+    if (repBtn) {
+      activeReply = { id: +repBtn.dataset.id, who: repBtn.dataset.who, snippet: repBtn.dataset.snippet };
+      renderReplyBar();
+      ta.focus();
+      return;
+    }
+    if (e.target.closest('[data-act="cancel-reply"]')) {
+      activeReply = null;
+      renderReplyBar();
+      return;
+    }
+    if (e.target.closest('[data-act="cancel-attach"]')) {
+      activeAttachment = null;
+      renderAttachBar();
+      return;
+    }
+    const quote = e.target.closest('.msg-quote[data-goto]');
+    if (quote) {
+      const targetId = quote.dataset.goto;
+      const targetEl = $(`#msg-${targetId}`, box);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetEl.classList.remove('highlight');
+        void targetEl.offsetWidth;
+        targetEl.classList.add('highlight');
+      } else {
+        toast('Pesan asli berada di riwayat obrolan terdahulu');
+      }
+      return;
+    }
+    const imgEl = e.target.closest('.chat-img-thumb');
+    if (imgEl) {
+      openLightbox(imgEl.dataset.src || imgEl.src, imgEl.dataset.name || 'Foto');
+      return;
+    }
+  });
+
+  const doSend = async () => {
+    if (isSending) return;
+    const rawText = ta.value.trim();
+    if (!rawText && !activeAttachment) return;
+
+    let body = rawText;
+    if (activeAttachment) {
+      body = (body ? body + '\n' : '') + activeAttachment.url;
+    }
+    const replyToId = activeReply ? activeReply.id : null;
+
+    ta.value = '';
+    ta.style.height = '';
+    const savedAttach = activeAttachment;
+    const savedReply = activeReply;
+    activeAttachment = null;
+    activeReply = null;
+    renderAttachBar();
+    renderReplyBar();
+
+    try {
+      isSending = true;
+      await sendHandler({ body, replyToId });
+    } catch (err) {
+      ta.value = rawText;
+      activeAttachment = savedAttach;
+      activeReply = savedReply;
+      renderAttachBar();
+      renderReplyBar();
+      if (err.message !== 'auth') toast(err.message || 'Gagal mengirim pesan');
+    } finally {
+      isSending = false;
+      ta.focus();
+    }
+  };
+
+  $('#cf', o).addEventListener('submit', e => { e.preventDefault(); doSend(); });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      doSend();
+    }
+  });
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+  });
   ta.focus();
 }
 
+async function openChat(id) {
+  const m = mem(id); if (!m) return;
+  const o = layer('drawer', `
+    <div class="chat">
+      <div class="chat-h">
+        ${av(m, 'lg')}
+        <div>
+          <h3>${esc(m.name)}</h3>
+          <small class="mut"><i class="st-d ${m.on ? 'on' : ''}"></i>${m.on ? 'Online' : 'Offline'} · ${esc(m.role)}</small>
+        </div>
+        <button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button>
+      </div>
+      <div class="msgs" id="msgs"><div class="empty">Memuat…</div></div>
+      <div id="chatReplyBarWrap"></div>
+      <div id="chatAttachPreviewWrap"></div>
+      <form class="chat-f" id="cf" autocomplete="off">
+        <div class="chat-f-row">
+          <input type="file" id="chatFileInput" style="display:none">
+          <button type="button" class="btn sm" id="btnChatAttach" title="Lampirkan berkas atau foto" aria-label="Lampirkan berkas" style="padding:10px 11px">${ic('attach')}</button>
+          <textarea class="in" rows="1" maxlength="2000" placeholder="Ketik pesan untuk ${esc(m.name.split(' ')[0])}…" aria-label="Pesan"></textarea>
+          <button class="btn primary" aria-label="Kirim">${ic('send')}</button>
+        </div>
+      </form>
+    </div>
+  `);
+  chat = { id, msgs: [] }; S.unread[id] = 0; post();
+  const box = $('#msgs', o);
+  try { chat.msgs = await api('GET', '/api/messages/' + id); } catch (e) { if (e.message !== 'auth') toast(e.message); return; }
+  if (!chat || chat.id !== id) return;
+  box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada pesan. Sapa dulu!</div>';
+  box.scrollTop = box.scrollHeight;
+
+  setupChatDrawer(o, async payload => {
+    const sent = await api('POST', '/api/messages', { to: id, ...payload });
+    addMsg(sent);
+  });
+}
+
 async function openChannelChat(channel, title, subtitle = '') {
-  const o = layer('drawer', `<div class="chat"><div class="chat-h"><div class="pico" style="width:36px;height:36px;border-radius:10px;font-size:18px;display:flex;align-items:center;justify-content:center;background:var(--ac-soft);border:2px solid #0f172a;font-weight:800;color:var(--ac)">#</div><div><h3>${esc(title)}</h3><small class="mut">${esc(subtitle || 'Obrolan Channel')}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><input type="file" id="chatFileInput" style="display:none"><button type="button" class="btn sm" id="btnChatAttach" title="Lampirkan berkas atau foto" aria-label="Lampirkan berkas" style="padding:10px 11px">${ic('attach')}</button><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan ke #${esc(title)}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
+  const o = layer('drawer', `
+    <div class="chat">
+      <div class="chat-h">
+        <div class="pico" style="width:38px;height:38px;border-radius:10px;font-size:18px;display:flex;align-items:center;justify-content:center;background:var(--ac-soft);border:2px solid #0f172a;font-weight:800;color:var(--ac)">#</div>
+        <div>
+          <h3>${esc(title)}</h3>
+          <small class="mut">${esc(subtitle || 'Obrolan Channel')}</small>
+        </div>
+        <button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button>
+      </div>
+      <div class="msgs" id="msgs"><div class="empty">Memuat…</div></div>
+      <div id="chatReplyBarWrap"></div>
+      <div id="chatAttachPreviewWrap"></div>
+      <form class="chat-f" id="cf" autocomplete="off">
+        <div class="chat-f-row">
+          <input type="file" id="chatFileInput" style="display:none">
+          <button type="button" class="btn sm" id="btnChatAttach" title="Lampirkan berkas atau foto" aria-label="Lampirkan berkas" style="padding:10px 11px">${ic('attach')}</button>
+          <textarea class="in" rows="1" maxlength="2000" placeholder="Ketik pesan ke #${esc(title)}…" aria-label="Pesan"></textarea>
+          <button class="btn primary" aria-label="Kirim">${ic('send')}</button>
+        </div>
+      </form>
+    </div>
+  `);
   chat = { channel, msgs: [] };
-  const box = $('#msgs', o), ta = $('textarea', o), fi = $('#chatFileInput', o), btnAtt = $('#btnChatAttach', o);
-  if (fi && btnAtt) {
-    btnAtt.onclick = () => fi.click();
-    fi.onchange = async () => {
-      const f = fi.files?.[0]; if (!f) return;
-      try {
-        btnAtt.disabled = true; toast('Mengunggah berkas…');
-        const res = await uploadFileBlob(f);
-        ta.value = (ta.value ? ta.value + '\n' : '') + res.url;
-        ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
-        ta.focus(); toast('Berkas berhasil dilampirkan!');
-      } catch (err) { toast(err.message || 'Gagal mengunggah berkas'); }
-      finally { btnAtt.disabled = false; fi.value = ''; }
-    };
-  }
+  const box = $('#msgs', o);
   try { chat.msgs = await api('GET', '/api/messages/channel/' + encodeURIComponent(channel)); } catch (e) { if (e.message !== 'auth') toast(e.message); return; }
   if (!chat || chat.channel !== channel) return;
-  box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada obrolan di channel ini. Mulai diskusi!</div>'; box.scrollTop = box.scrollHeight;
-  const send = async () => { const body = ta.value.trim(); if (!body) return; ta.value = ''; ta.style.height = ''; try { const sent = await api('POST', '/api/messages/channel/' + encodeURIComponent(channel), { body }); addMsg(sent); } catch (e) { if (e.message !== 'auth') toast(e.message); ta.value = body; } };
-  $('#cf', o).addEventListener('submit', e => { e.preventDefault(); send(); });
-  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
-  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
-  ta.focus();
+  box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada obrolan di channel ini. Mulai diskusi!</div>';
+  box.scrollTop = box.scrollHeight;
+
+  setupChatDrawer(o, async payload => {
+    const sent = await api('POST', '/api/messages/channel/' + encodeURIComponent(channel), payload);
+    addMsg(sent);
+  });
 }
 
 /* ---------- actions ---------- */
