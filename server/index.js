@@ -4,7 +4,7 @@ const { all, one, run, tx, now, today, dayOf, addDays, hashPw, verifyPw, clients
 const express = require('express'), crypto = require('crypto'), path = require('path'), fs = require('fs');
 const { E, s, D, en, int, money, sha, cookies, startSession, limited, tries, EMAIL, PRIO, APP_URL, SECURE, COOKIE } = require('./http');
 const tg = require('./telegram'), reminders = require('./reminders'), mail = require('./mail'), { buildReport } = require('./report');
-const PORT = +process.env.PORT || 3000, HOST = process.env.HOST || '127.0.0.1';
+const PORT = +process.env.PORT || 3000, HOST = process.env.HOST || '0.0.0.0';
 const TAGS = ['Frontend', 'Backend', 'Design', 'QA', 'Marketing'], STAGES = ['todo', 'progress', 'review', 'done'];
 const STATUS = ['pending', 'running', 'ended'], DIVS = ['Engineering', 'Design', 'Marketing', 'Management'], EV = ['meeting', 'team', 'review', 'deadline', 'social'];
 const STAGE_LABEL = { todo: 'To do', progress: 'In progress', review: 'In review', done: 'Done' };
