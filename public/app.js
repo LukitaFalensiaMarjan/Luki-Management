@@ -1281,7 +1281,108 @@ const ACT = {
     setTimeout(() => $('#masuk')?.scrollIntoView({ behavior: 'smooth' }), 100);
   },
   go: b => { closePop(); location.hash = '#/' + b.dataset.k; },
-  help: () => layer('modal', `${modalHead('Help')}<div class="kb"><div><span>Cari</span><kbd>⌘/Ctrl + K</kbd></div><div><span>Tutup dialog</span><kbd>Esc</kbd></div><div><span>Pindah kartu tugas</span><span class="mut">Drag, atau menu ⋯</span></div><div><span>Chat dengan rekan</span><span class="mut">Team → Chat</span></div><div><span>Selesaikan project</span><span class="mut">Klik pill status → PDF dibuat</span></div><div><span>Notifikasi Telegram</span><span class="mut">Settings → Notifications</span></div></div><div class="fa"><button class="btn primary" data-act="close">Mengerti</button></div>`),
+  help: () => {
+    const html = `
+      ${modalHead('Pusat Bantuan & Panduan')}
+      <div class="help-body">
+        <div class="help-contact">
+          <h4>${ic('mail')} Butuh Bantuan Langsung?</h4>
+          <p>Jika ada pertanyaan, kendala teknis, atau membutuhkan panduan khusus yang belum jelas, Anda dapat langsung menghubungi Admin / Pengembang:</p>
+          <div class="help-contact-bar">
+            <span class="help-contact-email">${ic('mail')} lukitafalensiamarjan@gmail.com</span>
+            <div class="help-contact-acts">
+              <button type="button" class="btn sm" data-act="copy-help-email" data-email="lukitafalensiamarjan@gmail.com">${ic('check')} Salin Email</button>
+              <a href="mailto:lukitafalensiamarjan@gmail.com?subject=Tanya%20LUKI%20MANAGEMENT" class="btn sm primary" target="_blank" rel="noopener noreferrer">${ic('send')} Kirim Pesan</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('dash')} Pintasan Keyboard &amp; Navigasi Cepat</h4>
+          <div class="help-card">
+            <div class="help-row"><b>Pencarian Cepat Global</b><kbd>⌘ / Ctrl + K</kbd></div>
+            <div class="help-row"><b>Tutup Jendela Dialog</b><kbd>Esc</kbd></div>
+            <div class="help-row"><b>Pindah Status Tugas</b><span class="desc">Drag &amp; drop kartu atau menu titik tiga (⋯)</span></div>
+            <div class="help-row"><b>Detail &amp; Diskusi Tugas</b><span class="desc">Klik kartu tugas untuk melihat sub-task &amp; chat</span></div>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('tasks')} Manajemen Proyek &amp; Tugas (Tasks)</h4>
+          <div class="help-card">
+            <ul class="help-list">
+              <li><b>Project Baru:</b> Tentukan nama project dan tenggat waktu (due date). Menandai proyek selesai akan otomatis membuat laporan ringkasan <b>PDF resmi</b>.</li>
+              <li><b>Tugas &amp; Custom Tag:</b> Tentukan judul tugas, prioritas (High, Medium, Low), serta Tag kustom bebas (misal: Frontend, Backend, UI/UX, Marketing).</li>
+              <li><b>Sub-Task &amp; Diskusi Tim:</b> Di dalam modal Detail Tugas, Anda bisa menambahkan checklist sub-task dan berdiskusi langsung di kolom komentar real-time.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('team')} Kolaborasi Multi-Team &amp; Hak Akses (RBAC)</h4>
+          <div class="help-card">
+            <ul class="help-list">
+              <li><b>Multi-Team:</b> Pengguna dapat membuat lebih dari satu tim (nama, logo emoji/icon, dan deskripsi khusus).</li>
+              <li><b>Ketua Tim &amp; Hak Akses:</b> Pembuat tim menjadi Ketua Tim dan berwenang menetapkan role anggota (Ketua Tim, Anggota, atau Viewer) khusus untuk tim tersebut.</li>
+              <li><b>Undang Anggota:</b> Tambahkan anggota ke dalam tim menggunakan username (@username) atau email terdaftar.</li>
+              <li><b>Chat Tim:</b> Fitur obrolan pesan langsung (direct message) antar anggota tim tersedia di menu <b>Team → Chat</b>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('heart')} Ruang Pribadi (Catatan &amp; Keuangan)</h4>
+          <div class="help-card">
+            <ul class="help-list">
+              <li><b>Pencatatan Keuangan:</b> Kelola catatan pemasukan dan pengeluaran pribadi serta pantau target anggaran bulanan Anda.</li>
+              <li><b>Catatan Rahasia:</b> Simpan ide atau catatan pribadi penting. Seluruh data di Ruang Pribadi 100% aman dan terisolasi, tidak dapat dilihat anggota tim lain.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('cal')} Kalender &amp; Jadwal Event</h4>
+          <div class="help-card">
+            <ul class="help-list">
+              <li><b>Jadwal &amp; Agenda:</b> Tandai agenda meeting, review, deadline tugas, dan kegiatan sosial tim.</li>
+              <li><b>Edit Jadwal:</b> Klik jadwal pada kalender untuk mengubah judul, jam, tanggal, atau kategori kegiatan secara langsung.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('send')} Pengingat Bot Telegram (@LukiManagementBot)</h4>
+          <div class="help-card">
+            <ul class="help-list">
+              <li><b>Notifikasi Otomatis:</b> Bot Telegram akan mengirimkan pesan pengingat tenggat waktu (H-7, H-3, H-2, dan H-1) otomatis ke ponsel Anda.</li>
+              <li><b>Cara Menghubungkan:</b> Buka menu <b>Settings → Notifications</b>, klik tombol <b>Connect Telegram</b> dan tekan <b>Start</b> di bot Telegram.</li>
+              <li><b>Perintah Telegram:</b> Ketik <code>/deadline</code> untuk cek tugas 14 hari ke depan, atau <code>/catat 25000 makan</code> untuk catat pengeluaran langsung dari Telegram!</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-sec">
+          <h4>${ic('user')} Profil Pengguna &amp; Keamanan Akun</h4>
+          <div class="help-card">
+            <ul class="help-list">
+              <li><b>Edit Profil:</b> Klik avatar profil Anda untuk mengubah nama, username unik (@username), foto profil / icon avatar, dan divisi.</li>
+              <li><b>Tempat Tanggal Lahir:</b> Anda dapat mengisi data TTL dan mengaktifkan opsi berbagi ulang tahun agar rekan tim mendapatkan notifikasi saat Anda ultah.</li>
+              <li><b>Ubah Kata Sandi:</b> Ganti kata sandi secara berkala di menu <b>Settings → Kata Sandi</b>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="fa" style="margin-top:6px">
+        <button class="btn primary" data-act="close" style="width:100%">Tutup Panduan</button>
+      </div>
+    `;
+    layer('modal help-modal', html);
+  },
+  'copy-help-email': b => {
+    const email = b.dataset.email || 'lukitafalensiamarjan@gmail.com';
+    navigator.clipboard?.writeText(email);
+    toast('Alamat email disalin: ' + email);
+  },
   logout: () => layer('modal', `${modalHead('Logout')}<p class="mut" style="font-size:13px">Keluar dari LUKI MANAGEMENT?</p><div class="fa"><button class="btn" data-act="close">Batal</button><button class="btn primary" data-act="do-logout">Logout</button></div>`),
   'do-logout': async () => { try { await api('POST', '/api/auth/logout'); } catch { /* already out */ } showAuth(); setTab('login'); toast('Kamu sudah logout'); },
   download: () => toast('Aplikasi mobile segera hadir'),
