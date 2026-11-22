@@ -487,7 +487,45 @@ const ACT = {
   menu: b => { const id = +b.dataset.id, t = S.tasks.find(x => x.id === id); pop(b, `<p class="cap">Move to</p>${STAGES.filter(s => s[0] !== t.stage).map(([k, l]) => `<button data-act="mv" data-id="${id}" data-k="${k}">${l}</button>`).join('')}<hr><button data-act="del-task" data-id="${id}" style="color:var(--bad)">${ic('trash')}Delete</button>`); },
   mv: b => { closePop(); moveTask(+b.dataset.id, b.dataset.k); },
   'del-task': b => { closePop(); mut('DELETE', '/api/tasks/' + b.dataset.id, null, 'Task deleted', false); },
-  invite: () => { const u = location.origin; (navigator.clipboard?.writeText(u) || Promise.reject()).then(() => toast('Link pendaftaran disalin. Kirim ke rekan tim'), () => toast('Bagikan link ini: ' + u)); },
+  invite: () => {
+    const regUrl = `${location.origin}/?tab=register`;
+    form(`${modalHead('Undang Anggota Tim')}<form class="f">
+      <p class="mut" style="font-size:12.5px;line-height:1.5;margin-bottom:12px">Kirim undangan pendaftaran langsung ke email rekan tim Anda, atau salin tautan pendaftaran di bawah.</p>
+      ${field('Email rekan tim', '<input class="in" type="email" name="email" required placeholder="rekan@email.com">', 1)}
+      <div class="field" style="margin-top:8px">
+        <label class="lab">Atau bagikan tautan pendaftaran</label>
+        <div style="display:flex;gap:6px">
+          <input class="in" id="invLink" value="${regUrl}" readonly style="background:var(--bg);font-size:12px">
+          <button type="button" class="btn sm" data-act="copy-inv">${ic('link')}Salin</button>
+        </div>
+      </div>
+      <div class="fa w" style="margin-top:14px">
+        <button type="button" class="btn" data-act="close">Batal</button>
+        <button class="btn primary">${ic('send')}Kirim Undangan Email</button>
+      </div>
+    </form>`,
+    async fd => {
+      const email = (fd.get('email') || '').trim();
+      if (!email) return;
+      try {
+        const r = await api('POST', '/api/team/invite', { email });
+        closeLayer();
+        if (r.sent) toast(`Undangan berhasil dikirim ke ${email}!`);
+        else toast('Tautan pendaftaran siap dibagikan');
+      } catch (e) {
+        if (e.message !== 'auth') toast(e.message);
+      }
+    });
+  },
+  'copy-inv': () => {
+    const el = $('#invLink');
+    if (el) {
+      (navigator.clipboard?.writeText(el.value) || Promise.reject()).then(
+        () => toast('Tautan pendaftaran berhasil disalin!'),
+        () => toast('Salin tautan: ' + el.value)
+      );
+    }
+  },
   chat: b => openChat(+b.dataset.id),
   profile: b => { const m = mem(+b.dataset.id), ts = S.tasks.filter(t => t.who.includes(m.id)), o = ts.filter(t => t.stage !== 'done');
     layer('drawer', `<div class="mh"><span></span><button class="x" data-act="close" aria-label="Tutup">${ic('x')}</button></div><div class="dr-top">${av(m, 'lg')}<h3>${esc(m.name)}</h3><small>${esc(m.role)}</small><br><small>${esc(m.loc || '—')} · ${esc(m.div)} · ${m.on ? 'Online' : 'Offline'}</small></div><div class="dr-st"><div><b>${o.length}</b><small>Open</small></div><div><b>${ts.length - o.length}</b><small>Done</small></div><div><b>${Math.min(95, o.length * 20)}%</b><small>Load</small></div></div><p class="lab2" style="margin-top:0">Assigned tasks</p>${ts.map(t => `<div class="dr-t"><i></i>${esc(t.title)}<small>${STAGES.find(s => s[0] === t.stage)[1]}</small></div>`).join('') || '<p class="mut">Belum ada tugas.</p>'}<div class="fa" style="margin-top:20px">${m.id !== S.me.id ? `<button class="btn" data-act="chat" data-id="${m.id}">${ic('chat')}Chat</button>` : ''}<button class="btn primary" data-act="assign" data-id="${m.id}">${ic('plus')}Assign task</button></div>`); },
@@ -575,9 +613,25 @@ const AUTH_MSG = { verified: 'Email terverifikasi. Selamat datang!', invalid: 'T
   google_off: 'Login Google belum diaktifkan di server.', google_fail: 'Login Google gagal, coba lagi.', google_unverified: 'Email Google kamu belum terverifikasi oleh Google.', closed: 'Pendaftaran akun baru sedang ditutup.' };
 document.addEventListener('DOMContentLoaded', async () => {
   $$('[data-i]').forEach(e => e.innerHTML = ic(e.dataset.i));
-  const q = new URLSearchParams(location.search).get('auth');
+  const params = new URLSearchParams(location.search);
+  const q = params.get('auth');
+  const tab = params.get('tab');
+  const emailParam = params.get('email');
   if (q) history.replaceState(null, '', location.pathname + location.hash);
   api('GET', '/api/auth/config').then(c => { document.documentElement.classList.toggle('no-google', !c.google); $('[data-tab=register]').hidden = !c.register; }).catch(() => {});
-  try { await enter(); } catch { showAuth(); if (q && q !== 'verified') { setTab('login'); $('#masuk').scrollIntoView(); } }
+  try { await enter(); } catch {
+    showAuth();
+    if (tab === 'register') {
+      setTab('register');
+      if (emailParam) {
+        const inp = $('#fReg input[name="email"]');
+        if (inp) inp.value = emailParam;
+      }
+      setTimeout(() => $('#masuk')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } else if (q && q !== 'verified') {
+      setTab('login');
+      $('#masuk').scrollIntoView();
+    }
+  }
   if (q && AUTH_MSG[q]) toast(AUTH_MSG[q]);
 });

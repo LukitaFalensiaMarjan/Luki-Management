@@ -246,6 +246,22 @@ app.patch('/api/me', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/team/invite', async (req, res) => {
+  const email = s(req.body?.email || '', 100).toLowerCase();
+  if (!EMAIL.test(email)) throw E(400, 'Format email tidak valid');
+  const ex = one('SELECT id, name, email_verified FROM users WHERE email=?', email);
+  if (ex && ex.email_verified) throw E(409, 'Email ini sudah terdaftar sebagai anggota tim');
+  const link = `${APP_URL}/?tab=register&email=${encodeURIComponent(email)}`;
+  let sent = false;
+  try {
+    sent = await mail.sendInvite(email, req.user.name, link);
+  } catch (e) {
+    console.error('[mail:invite]', e.message);
+  }
+  activity(req.user.id, null, `${req.user.name} mengirim undangan tim ke ${email}`);
+  res.json({ ok: true, sent, link });
+});
+
 /* ---------- chat ---------- */
 app.get('/api/messages/:uid', (req, res) => {
   const o = int(req.params.uid), me = req.user.id;
