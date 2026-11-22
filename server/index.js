@@ -256,8 +256,9 @@ const projId = v => { if (v == null || v === '') return null; const id = int(v);
 app.post('/api/tasks', (req, res) => {
   const b = req.body || {}, title = s(b.title, 80), pid = projId(b.projectId);
   const desc = s(b.description || '', 2000, 0);
+  const tag = s(b.tag || 'General', 30, 1);
   const id = tx(() => {
-    const r = run('INSERT INTO tasks(project_id,title,description,tag,prio,stage,due,prog,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)', pid, title, desc, en(b.tag || 'Frontend', TAGS), en(b.prio || 'Medium', PRIO), 'todo', D(b.due), 0, req.user.id, now());
+    const r = run('INSERT INTO tasks(project_id,title,description,tag,prio,stage,due,prog,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)', pid, title, desc, tag, en(b.prio || 'Medium', PRIO), 'todo', D(b.due), 0, req.user.id, now());
     setWho(r.lastInsertRowid, b.who, req.user); return r.lastInsertRowid;
   });
   activity(req.user.id, pid, `${req.user.name} membuat task "${title}"`);
@@ -268,7 +269,7 @@ app.patch('/api/tasks/:id', (req, res) => {
   const b = req.body || {}, f = {};
   if ('title' in b) f.title = s(b.title, 80);
   if ('description' in b) f.description = s(b.description, 2000, 0);
-  if ('tag' in b) f.tag = en(b.tag, TAGS);
+  if ('tag' in b) f.tag = s(b.tag || 'General', 30, 1);
   if ('prio' in b) f.prio = en(b.prio, PRIO);
   if ('due' in b) f.due = D(b.due);
   if ('projectId' in b) f.project_id = projId(b.projectId);

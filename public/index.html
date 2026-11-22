@@ -150,11 +150,14 @@
         <div id="forgotPanel" class="vpanel" hidden>
           <span class="v-ic" data-i="mail"></span>
           <h3>Lupa Kata Sandi?</h3>
-          <p>Masukkan alamat email kamu. Kami akan mengirimkan tautan pemulihan kata sandi (berlaku 1 jam).</p>
+          <p>Masukkan alamat email akun kamu. Kami akan mengirimkan tautan pemulihan kata sandi (berlaku 1 jam).</p>
           <form id="fForgot" class="f" novalidate style="margin-top:14px">
             <label class="fl">Email Akun<input class="in" type="email" name="email" id="forgotEmailIn" required placeholder="kamu@email.com"></label>
-            <p class="a-err" id="forgotErr" role="alert"></p>
-            <div class="fa" style="margin-top:14px"><button type="button" class="btn" data-tab-back>Kembali ke login</button><button class="btn primary">Kirim Tautan</button></div>
+            <p class="a-err" id="forgotErr" role="alert" style="margin:4px 0 0;font-size:12px"></p>
+            <div class="vpanel-btns" style="display:flex;gap:10px;margin-top:16px">
+              <button type="button" class="btn" data-tab-back style="flex:1">Kembali</button>
+              <button class="btn primary" style="flex:1">Kirim Tautan</button>
+            </div>
           </form>
         </div>
         <div id="resetPanel" class="vpanel" hidden>
@@ -164,9 +167,12 @@
           <form id="fReset" class="f" novalidate style="margin-top:14px">
             <input type="hidden" name="token" id="resetTokenIn">
             <label class="fl">Kata Sandi Baru<input class="in" type="password" name="password" id="resetPwIn" required minlength="8" placeholder="Minimal 8 karakter"></label>
-            <label class="fl">Ulangi Kata Sandi<input class="in" type="password" name="confirm" id="resetPwConf" required minlength="8"></label>
-            <p class="a-err" id="resetErr" role="alert"></p>
-            <div class="fa" style="margin-top:14px"><button type="button" class="btn" data-tab-back>Kembali ke login</button><button class="btn primary">Simpan Sandi Baru</button></div>
+            <label class="fl">Ulangi Kata Sandi<input class="in" type="password" name="confirm" id="resetPwConf" required minlength="8" placeholder="Ulangi kata sandi"></label>
+            <p class="a-err" id="resetErr" role="alert" style="margin:4px 0 0;font-size:12px"></p>
+            <div class="vpanel-btns" style="display:flex;gap:10px;margin-top:16px">
+              <button type="button" class="btn" data-tab-back style="flex:1">Batal</button>
+              <button class="btn primary" style="flex:1">Simpan Sandi Baru</button>
+            </div>
           </form>
         </div>
       </div>

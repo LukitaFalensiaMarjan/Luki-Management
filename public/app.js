@@ -107,7 +107,7 @@ const allEvents = () => [...S.events.map(e => ({ ...e, own: true })),
   ...S.projects.filter(p => p.status !== 'ended').map(p => ({ id: 'p' + p.id, title: 'Project due: ' + p.name, date: p.due, time: 'All day', type: 'deadline' }))];
 
 /* ---------- ui state ---------- */
-let cur = 'dashboard', Q = '', TF = 'all', TD = 'All', AR = 30, ST = 'profile', PV = {}, tok = 0, AD = null, dragId = null, chat = null, dirty = false;
+let cur = 'dashboard', Q = '', TF = 'all', TD = 'All', AR = 30, ST = 'security', PV = {}, tok = 0, AD = null, dragId = null, chat = null, dirty = false;
 let CV = { y: new Date().getFullYear(), m: new Date().getMonth(), sel: off(0) };
 const view = $('#view');
 const hasQ = s => !Q || s.toLowerCase().includes(Q);
@@ -207,7 +207,7 @@ const dueLab = t => { if (t.stage === 'done') return short(t.due); const d = dif
 function vTasks() {
   const wk = off(7);
   const ts = S.tasks.filter(t => hasQ((t.title + ' ' + t.tag).toLowerCase()) && (TF === 'all' || (TF === 'mine' && t.who.includes(S.me.id)) || (TF === 'high' && t.prio === 'High') || (TF === 'week' && t.stage !== 'done' && t.due <= wk)));
-  const card = (t, i) => { const pj = S.projects.find(p => p.id === t.projectId); return `<div class="tcard" draggable="true" data-id="${t.id}" data-act="task-detail" style="animation-delay:${i * 40}ms;cursor:pointer"><div class="tmeta"><span class="tag ${t.tag}">${t.tag}</span><span class="pr ${t.prio}">${ic('flag')}${t.prio}</span><button class="mn" data-act="menu" data-id="${t.id}" aria-label="Menu tugas">${ic('more')}</button></div><h5>${esc(t.title)}</h5><div class="prog"><i style="width:${t.prog}%"></i></div><div class="tfoot"><span>${ic('clock')}</span><span>${dueLab(t)}</span>${pj ? `<span class="pj" title="${esc(pj.name)}">${esc(pj.name)}</span>` : ''}<span class="stack">${t.who.map(mem).map(m => av(m, 'sm')).join('')}</span></div></div>`; };
+  const card = (t, i) => { const pj = S.projects.find(p => p.id === t.projectId); return `<div class="tcard" draggable="true" data-id="${t.id}" data-act="task-detail" style="animation-delay:${i * 40}ms;cursor:pointer"><div class="tmeta"><span class="tag ${esc((t.tag || '').replace(/\s+/g, '-'))}">${esc(t.tag || 'General')}</span><span class="pr ${t.prio}">${ic('flag')}${t.prio}</span><button class="mn" data-act="menu" data-id="${t.id}" aria-label="Menu tugas">${ic('more')}</button></div><h5>${esc(t.title)}</h5><div class="prog"><i style="width:${t.prog}%"></i></div><div class="tfoot"><span>${ic('clock')}</span><span>${dueLab(t)}</span>${pj ? `<span class="pj" title="${esc(pj.name)}">${esc(pj.name)}</span>` : ''}<span class="stack">${t.who.map(mem).map(m => av(m, 'sm')).join('')}</span></div></div>`; };
   const cols = STAGES.map(([k, l]) => { const c = ts.filter(t => t.stage === k); return `<div class="col" data-stage="${k}"><h4><i></i>${l}<span>${c.length}</span></h4>${c.map(card).join('') || '<div class="empty">Drop a card here</div>'}</div>`; }).join('');
   const tabs = [['all', 'All'], ['mine', 'My tasks'], ['high', 'High priority'], ['week', 'Due this week']].map(([k, l]) => `<button class="tab ${TF === k ? 'on' : ''}" data-act="tf" data-k="${k}">${l}</button>`).join('');
   return head('Tasks', 'Drag a card to another stage, or use its menu to move it.', `<button class="btn primary" data-act="new-task">${ic('plus')}New Task</button>`) + `<div class="tabs">${tabs}<span class="cnt">${ts.length} tasks shown</span></div><div class="board">${cols}</div>`;
@@ -422,61 +422,18 @@ function vAna() {
 }
 
 function vSet() {
-  const nav = [['profile', 'user', 'Profile'], ['security', 'shield', 'Kata Sandi'], ['notif', 'bellS', 'Notifications'], ['look', 'palette', 'Appearance']].map(([k, i, l]) => `<button class="${ST === k ? 'on' : ''}" data-act="st" data-k="${k}">${ic(i)}${l}</button>`).join('');
+  const nav = [['security', 'shield', 'Kata Sandi'], ['notif', 'bellS', 'Notifications'], ['look', 'palette', 'Appearance']].map(([k, i, l]) => `<button class="${ST === k ? 'on' : ''}" data-act="st" data-k="${k}">${ic(i)}${l}</button>`).join('');
   let p; const m = S.me;
-  if (ST === 'profile') {
-    const isCustomDiv = m.div && !DIVISIONS.includes(m.div);
-    const divOpts = DIVISIONS.map(d => `<option value="${d}" ${d === m.div ? 'selected' : ''}>${d}</option>`).join('') +
-      `<option value="_custom" ${isCustomDiv ? 'selected' : ''}>Lainnya (Isi sendiri)...</option>`;
-    const curAv = m.avatar?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === m.avatar)?.[1] || '👤') : m.avatar ? `<img src="${m.avatar}">` : ini(m.name);
-    const curAvCls = m.avatar?.startsWith('preset:') ? 'av-preset' : m.avatar ? 'av-img' : '';
-    const avPresetsHtml = AVATAR_PRESETS.map(([id, emoji, label]) => `<button type="button" class="av-pbtn ${m.avatar === id ? 'on' : ''}" data-act="pick-av" data-id="${id}" title="${label}">${emoji}</button>`).join('');
-    const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[m.teamRole] || 'role-member';
-
-    p = `<h2>Profile Saya</h2><p>Kelola identitas, foto profil, dan informasi pribadimu di workspace.</p>
-    <form id="pf" class="f">
-      <div class="field">
-        <label class="lab">Foto Profil / Avatar</label>
-        <div class="av-preview-wrap">
-          <span class="av lg ${curAvCls}" id="setAvPrev">${curAv}</span>
-          <div>
-            <div class="fa" style="margin:0 0 6px">
-              <input type="file" id="avFile" accept="image/*" style="display:none">
-              <button type="button" class="btn sm" data-act="trigger-av-file">${ic('upload')}Upload Foto</button>
-              <button type="button" class="btn sm" data-act="reset-av">Reset Inisial</button>
-            </div>
-            <small class="mut">Pilih ikon preset di bawah atau upload gambar sendiri.</small>
-          </div>
-        </div>
-        <div class="av-preset-grid">${avPresetsHtml}</div>
-      </div>
-      <div class="two">
-        ${field('Nama Lengkap', `<input class="in" name="name" required minlength="2" maxlength="50" value="${esc(m.name)}">`)}
-        ${field('Username <small class="mut">(unik)</small>', `<div style="display:flex;align-items:center"><span style="padding:0 8px;font-weight:700;color:var(--mut)">@</span><input class="in" name="username" required minlength="3" maxlength="30" value="${esc(m.username || '')}" placeholder="username"></div>`)}
-      </div>
-      <div class="two">
-        ${field(`Email <small class="mut">(${m.provider === 'google' ? 'Google' : 'terverifikasi'})</small>`, `<input class="in" type="email" value="${esc(m.email)}" readonly aria-readonly="true">`)}
-        ${field('Peran dalam Tim', `<div style="display:flex;align-items:center;height:42px"><span class="pill ${roleCls}" style="font-size:13px">${esc(m.teamRole || 'Member')}</span></div>`)}
-      </div>
-      ${field('Divisi', `<select class="in" name="division_sel" id="pfDivSel">${divOpts}</select>`)}
-      <div class="field" id="pfCustomDivWrap" ${isCustomDiv ? '' : 'hidden'}>
-        <label class="lab">Nama Divisi Kustom</label>
-        <input class="in" name="division_custom" maxlength="50" value="${isCustomDiv ? esc(m.div) : ''}" placeholder="Tuliskan nama divisimu">
-      </div>
-      ${field('Alamat Tinggal / Domisili', `<input class="in" name="address" maxlength="150" value="${esc(m.address || '')}" placeholder="Contoh: Jl. Sudirman No. 12, Jakarta">`)}
-      <div class="two">
-        ${field('Tempat Lahir', `<input class="in" name="birthPlace" maxlength="50" value="${esc(m.birthPlace || '')}" placeholder="Kota tempat lahir">`)}
-        ${field('Tanggal Lahir', `<input class="in" type="date" name="birthDate" value="${esc(m.birthDate || '')}">`)}
-      </div>
-      <div class="tg" style="margin:8px 0 16px">
-        <div><b>Bagikan tanggal lahir ke tim</b><small>Anggota tim lain akan menerima notifikasi ucapan selamat saat hari ulang tahunmu tiba 🎉</small></div>
-        <input type="checkbox" name="shareBirthday" class="sw2-chk" ${m.shareBirthday ? 'checked' : ''} style="width:20px;height:20px">
-      </div>
-      ${field('Zona Waktu', `<select class="in" name="tz">${['GMT+7 · Jakarta', 'GMT+8 · Makassar', 'GMT+9 · Jayapura', 'GMT+0 · London', 'GMT-5 · New York'].map(z => `<option ${z === m.tz ? 'selected' : ''}>${z}</option>`).join('')}</select>`)}
-      ${field('Bio / Catatan', `<textarea class="in" name="bio" maxlength="200" placeholder="Ceritakan sedikit tentang dirimu...">${esc(m.bio)}</textarea>`, 1)}
-      <div class="fa w"><button type="button" class="btn" data-act="discard">Batal</button><button class="btn primary">Simpan Perubahan</button></div>
-    </form>`;
-  } else if (ST === 'security') {
+  if (ST === 'notif') {
+    const n = m.notif, rows = [['assign', 'Task assignments', 'Saat kamu ditugaskan ke task baru'], ['due', 'Deadline reminders', 'Pengingat H-7, H-3, H-2 dan H-1 untuk task dan project'], ['chat', 'Chat messages', 'Teruskan pesan baru ke Telegram saat kamu offline'], ['report', 'Project reports', 'Laporan PDF saat project selesai'], ['personal', 'Pengingat pribadi', 'Catatan, tugas pribadi, tagihan, wishlist, dan travel']];
+    const tgc = !S.tg.enabled ? `<p class="mut" style="font-size:12px">Bot Telegram belum dikonfigurasi di server. Isi <code>TELEGRAM_BOT_TOKEN</code> di file <code>.env</code> lalu restart server.</p>`
+      : m.tg ? `<div class="tg-st"><span class="pill s-ended">Connected</span><div class="fa" style="margin:0"><button class="btn sm" data-act="tg-test">Send test</button><button class="btn sm danger" data-act="tg-unlink">Disconnect</button></div></div>`
+      : `<div class="tg-st"><span class="pill s-pending">Not connected</span><button class="btn sm primary" data-act="tg-link">${ic('send')}Connect Telegram</button></div>`;
+    p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
+  } else if (ST === 'look') {
+    p = `<h2>Appearance</h2><p>The accent re-tints the whole workspace, and is saved to your account.</p><p class="lab2" style="margin-top:0">Accent</p><div class="acc">${[['forest', 'Forest', '#1f7a4d'], ['ocean', 'Ocean', '#1e47b8'], ['plum', 'Plum', '#6b35c4'], ['ember', 'Ember', '#c2491d']].map(([k, l, c]) => `<button class="acb ${m.accent === k ? 'on' : ''}" data-act="accent" data-k="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div><p class="lab2">Week starts on</p><div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
+  } else {
+    // default to 'security' (Kata Sandi)
     const pwForm = m.hasPassword ? `
       ${field('Kata Sandi Saat Ini', `<input class="in" type="password" name="oldPassword" required placeholder="Masukkan kata sandi lama">`)}
       ${field('Kata Sandi Baru', `<input class="in" type="password" name="newPassword" required minlength="8" placeholder="Minimal 8 karakter">`)}
@@ -487,14 +444,8 @@ function vSet() {
       ${field('Konfirmasi Kata Sandi Baru', `<input class="in" type="password" name="confirmPassword" required placeholder="Ulangi kata sandi baru">`)}
     `;
     p = `<h2>Kata Sandi &amp; Keamanan</h2><p>Kelola kata sandi akunmu untuk keamanan akun.</p><form id="pwf" class="f">${pwForm}<div class="fa w"><button class="btn primary">Perbarui Kata Sandi</button></div></form>`;
-  } else if (ST === 'notif') {
-    const n = m.notif, rows = [['assign', 'Task assignments', 'Saat kamu ditugaskan ke task baru'], ['due', 'Deadline reminders', 'Pengingat H-7, H-3, H-2 dan H-1 untuk task dan project'], ['chat', 'Chat messages', 'Teruskan pesan baru ke Telegram saat kamu offline'], ['report', 'Project reports', 'Laporan PDF saat project selesai'], ['personal', 'Pengingat pribadi', 'Catatan, tugas pribadi, tagihan, wishlist, dan travel']];
-    const tgc = !S.tg.enabled ? `<p class="mut" style="font-size:12px">Bot Telegram belum dikonfigurasi di server. Isi <code>TELEGRAM_BOT_TOKEN</code> di file <code>.env</code> lalu restart server.</p>`
-      : m.tg ? `<div class="tg-st"><span class="pill s-ended">Connected</span><div class="fa" style="margin:0"><button class="btn sm" data-act="tg-test">Send test</button><button class="btn sm danger" data-act="tg-unlink">Disconnect</button></div></div>`
-      : `<div class="tg-st"><span class="pill s-pending">Not connected</span><button class="btn sm primary" data-act="tg-link">${ic('send')}Connect Telegram</button></div>`;
-    p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
-  } else p = `<h2>Appearance</h2><p>The accent re-tints the whole workspace, and is saved to your account.</p><p class="lab2" style="margin-top:0">Accent</p><div class="acc">${[['forest', 'Forest', '#1f7a4d'], ['ocean', 'Ocean', '#1e47b8'], ['plum', 'Plum', '#6b35c4'], ['ember', 'Ember', '#c2491d']].map(([k, l, c]) => `<button class="acb ${m.accent === k ? 'on' : ''}" data-act="accent" data-k="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div><p class="lab2">Week starts on</p><div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
-  return head('Settings', 'Profil kamu, keamanan kata sandi, dan tampilan LUKI.') + `<div class="sw"><div class="card snav">${nav}</div><div class="card panel">${p}</div></div>`;
+  }
+  return head('Settings', 'Keamanan kata sandi, notifikasi, dan preferensi tampilan.') + `<div class="sw"><div class="card snav">${nav}</div><div class="card panel">${p}</div></div>`;
 }
 
 const ROUTES = { dashboard: [vDash, 'Dashboard', 'Search projects & people'], tasks: [vTasks, 'Tasks', 'Search tasks'], calendar: [vCal, 'Calendar', 'Search events'], analytics: [vAna, 'Analytics', 'Search'], team: [vTeam, 'Team', 'Search people'], profile: [vProf, 'Profile', 'Search profile'], settings: [vSet, 'Settings', 'Search'] };
@@ -615,26 +566,35 @@ $('#fLogin').addEventListener('submit', e => {
 });
 $('[data-act="forgot-link"]')?.addEventListener('click', e => {
   e.preventDefault();
+  card().classList.add('verifying');
   $('#fLogin').hidden = true; $('#fReg').hidden = true; $('#vPanel').hidden = true; $('#resetPanel').hidden = true;
   $('#forgotPanel').hidden = false;
   $('#forgotEmailIn').value = $('#fLogin [name=email]')?.value || '';
+  const errEl = $('#forgotErr'); if (errEl) errEl.textContent = '';
   $('#forgotEmailIn')?.focus();
 });
 $('#fForgot')?.addEventListener('submit', async e => {
   e.preventDefault();
   const email = ($('#forgotEmailIn')?.value || '').trim();
-  if (!email || !EMAIL.test(email)) { $('#forgotErr').textContent = 'Masukkan email yang valid'; return; }
-  const btn = $('#fForgot .primary'); if (btn) btn.disabled = true;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!email || !EMAIL_RE.test(email)) {
+    const errEl = $('#forgotErr');
+    if (errEl) { errEl.style.color = 'var(--bad)'; errEl.textContent = 'Masukkan alamat email yang valid'; }
+    return;
+  }
+  const btn = $('#fForgot .primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Mengirim...'; }
   try {
     const res = await api('POST', '/api/auth/forgot-password', { email });
     toast(res.message);
-    $('#forgotErr').style.color = '#15803d';
-    $('#forgotErr').textContent = res.message;
+    const errEl = $('#forgotErr');
+    if (errEl) { errEl.style.color = '#15803d'; errEl.textContent = res.message; }
   } catch (err) {
-    $('#forgotErr').style.color = 'var(--bad)';
-    $('#forgotErr').textContent = err.message;
+    const errEl = $('#forgotErr');
+    if (errEl) { errEl.style.color = 'var(--bad)'; errEl.textContent = err.message; }
+    toast(err.message);
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Kirim Tautan'; }
   }
 });
 $('#fReset')?.addEventListener('submit', async e => {
@@ -642,9 +602,11 @@ $('#fReset')?.addEventListener('submit', async e => {
   const tok = $('#resetTokenIn')?.value;
   const pw = $('#resetPwIn')?.value || '';
   const conf = $('#resetPwConf')?.value || '';
-  if (pw.length < 8) { $('#resetErr').textContent = 'Password minimal 8 karakter'; return; }
-  if (pw !== conf) { $('#resetErr').textContent = 'Konfirmasi password tidak cocok'; return; }
-  const btn = $('#fReset .primary'); if (btn) btn.disabled = true;
+  const errEl = $('#resetErr');
+  if (pw.length < 8) { if (errEl) errEl.textContent = 'Kata sandi baru minimal 8 karakter'; return; }
+  if (pw !== conf) { if (errEl) errEl.textContent = 'Konfirmasi kata sandi tidak cocok'; return; }
+  const btn = $('#fReset .primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan...'; }
   try {
     await api('POST', '/api/auth/reset-password', { token: tok, password: pw });
     toast('Kata sandi berhasil diperbarui! Silakan login.');
@@ -652,9 +614,10 @@ $('#fReset')?.addEventListener('submit', async e => {
     history.replaceState(null, '', u.pathname + u.hash);
     setTab('login');
   } catch (err) {
-    $('#resetErr').textContent = err.message;
+    if (errEl) errEl.textContent = err.message;
+    toast(err.message);
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Simpan Sandi Baru'; }
   }
 });
 $('#fReg').addEventListener('submit', e => {
@@ -914,8 +877,8 @@ const ACT = {
   },
   tf: b => { TF = b.dataset.k; paint(false); },
   td: b => { TD = b.dataset.k; paint(false); },
-  'new-task': () => form(`${modalHead('New task')}<form class="f">${field('Title', '<input class="in" name="title" required maxlength="80">', 1)}${field('Tag', `<select class="in" name="tag">${['Frontend', 'Backend', 'Design', 'QA', 'Marketing'].map(x => `<option>${x}</option>`).join('')}</select>`)}${field('Priority', '<select class="in" name="prio"><option>High</option><option selected>Medium</option><option>Low</option></select>')}${field('Project', `<select class="in" name="projectId">${projOpts()}</select>`)}${field('Due date', `<input class="in" type="date" name="due" required value="${off(7)}">`)}${field('Assignees', memberChecks([S.me.id]), 1)}<div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Create task</button></div></form>`,
-    async fd => { const t = fd.get('title').trim(); if (t) await mut('POST', '/api/tasks', { title: t, tag: fd.get('tag'), prio: fd.get('prio'), due: fd.get('due'), projectId: fd.get('projectId') || null, who: fd.getAll('who').map(Number) }, 'Task created'); }),
+  'new-task': () => form(`${modalHead('New task')}<form class="f">${field('Title', '<input class="in" name="title" required maxlength="80" placeholder="Judul task">', 1)}${field('Tag', `<input class="in" name="tag" list="tagList" required maxlength="30" placeholder="e.g. Frontend, DevOps, Marketing" value="Frontend"><datalist id="tagList"><option value="Frontend"><option value="Backend"><option value="Design"><option value="QA"><option value="Marketing"><option value="DevOps"><option value="Mobile"><option value="Research"></datalist>`)}${field('Priority', '<select class="in" name="prio"><option>High</option><option selected>Medium</option><option>Low</option></select>')}${field('Project', `<select class="in" name="projectId">${projOpts()}</select>`)}${field('Due date', `<input class="in" type="date" name="due" required value="${off(7)}">`)}${field('Assignees', memberChecks([S.me.id]), 1)}<div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Create task</button></div></form>`,
+    async fd => { const t = fd.get('title').trim(), tag = (fd.get('tag') || 'General').trim(); if (t) await mut('POST', '/api/tasks', { title: t, tag, prio: fd.get('prio'), due: fd.get('due'), projectId: fd.get('projectId') || null, who: fd.getAll('who').map(Number) }, 'Task created'); }),
   menu: b => {
     const id = +b.dataset.id, t = S.tasks.find(x => x.id === id);
     pop(b, `<p class="cap">Aksi Task</p><button data-act="task-detail" data-id="${id}">${ic('eye')}Detail &amp; Diskusi</button><button data-act="edit-task" data-id="${id}">${ic('edit')}Edit task</button><p class="cap">Move to</p>${STAGES.filter(s => s[0] !== t.stage).map(([k, l]) => `<button data-act="mv" data-id="${id}" data-k="${k}">${l}</button>`).join('')}<hr><button data-act="del-task" data-id="${id}" style="color:var(--bad)">${ic('trash')}Delete</button>`);
@@ -925,7 +888,7 @@ const ACT = {
     const id = +b.dataset.id, t = S.tasks.find(x => x.id === id); if (!t) return;
     form(`${modalHead('Edit task')}<form class="f">
       ${field('Title', `<input class="in" name="title" required maxlength="80" value="${esc(t.title)}">`, 1)}
-      ${field('Tag', `<select class="in" name="tag">${['Frontend', 'Backend', 'Design', 'QA', 'Marketing'].map(x => `<option ${x === t.tag ? 'selected' : ''}>${x}</option>`).join('')}</select>`)}
+      ${field('Tag', `<input class="in" name="tag" list="tagList" required maxlength="30" value="${esc(t.tag)}"><datalist id="tagList"><option value="Frontend"><option value="Backend"><option value="Design"><option value="QA"><option value="Marketing"><option value="DevOps"><option value="Mobile"><option value="Research"></datalist>`)}
       ${field('Priority', `<select class="in" name="prio">${['High', 'Medium', 'Low'].map(x => `<option ${x === t.prio ? 'selected' : ''}>${x}</option>`).join('')}</select>`)}
       ${field('Project', `<select class="in" name="projectId">${projOpts(t.projectId)}</select>`)}
       ${field('Due date', `<input class="in" type="date" name="due" required value="${t.due}">`)}
@@ -933,10 +896,10 @@ const ACT = {
       <div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Save changes</button></div>
     </form>`,
     async fd => {
-      const title = (fd.get('title') || '').trim();
+      const title = (fd.get('title') || '').trim(), tag = (fd.get('tag') || 'General').trim();
       if (!title) return;
       await mut('PATCH', '/api/tasks/' + id, {
-        title, tag: fd.get('tag'), prio: fd.get('prio'), due: fd.get('due'),
+        title, tag, prio: fd.get('prio'), due: fd.get('due'),
         projectId: fd.get('projectId') || null, who: fd.getAll('who').map(Number)
       }, 'Task diperbarui');
     });
@@ -1278,8 +1241,8 @@ const ACT = {
     if (S.notifs.some(n => n.unread)) api('POST', '/api/notifications/read').then(() => { S.notifs.forEach(n => n.unread = 0); $('#dot').classList.remove('on'); }).catch(() => {});
   },
   avatar: () => { closePop(); location.hash = '#/profile'; },
-  'go-pwd': () => { location.hash = '#/settings'; },
-  'go-look': () => { location.hash = '#/settings'; },
+  'go-pwd': () => { ST = 'security'; location.hash = '#/settings'; if (cur === 'settings') paint(false); },
+  'go-look': () => { ST = 'look'; location.hash = '#/settings'; if (cur === 'settings') paint(false); },
   go: b => { closePop(); location.hash = '#/' + b.dataset.k; },
   help: () => layer('modal', `${modalHead('Help')}<div class="kb"><div><span>Cari</span><kbd>⌘/Ctrl + K</kbd></div><div><span>Tutup dialog</span><kbd>Esc</kbd></div><div><span>Pindah kartu tugas</span><span class="mut">Drag, atau menu ⋯</span></div><div><span>Chat dengan rekan</span><span class="mut">Team → Chat</span></div><div><span>Selesaikan project</span><span class="mut">Klik pill status → PDF dibuat</span></div><div><span>Notifikasi Telegram</span><span class="mut">Settings → Notifications</span></div></div><div class="fa"><button class="btn primary" data-act="close">Mengerti</button></div>`),
   logout: () => layer('modal', `${modalHead('Logout')}<p class="mut" style="font-size:13px">Keluar dari LUKI MANAGEMENT?</p><div class="fa"><button class="btn" data-act="close">Batal</button><button class="btn primary" data-act="do-logout">Logout</button></div>`),
@@ -1460,6 +1423,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { await enter(); } catch {
     showAuth();
     if (resetToken) {
+      card().classList.add('verifying');
       $('#fLogin').hidden = true;
       $('#fReg').hidden = true;
       $('#vPanel').hidden = true;

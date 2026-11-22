@@ -439,6 +439,8 @@ html.no-google .g-only{display:none!important}
 .vpanel .v-ic .ic{width:26px;height:26px}
 .vpanel h3{font-size:19px}.vpanel p{font-size:13px;line-height:1.55;color:#475569;overflow-wrap:anywhere}
 .vpanel .fa{justify-content:center;flex-wrap:wrap}
+.vpanel-btns{display:flex;gap:10px;justify-content:center;align-items:center;width:100%;margin-top:16px}
+.vpanel-btns .btn{flex:1;height:42px;justify-content:center}
 .a-tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-radius:99px;padding:4px;margin-bottom:22px}
 .a-tabs button{position:relative;z-index:1;padding:9px;border-radius:99px;font-weight:700;font-size:13px;color:var(--mut);transition:color .25s}
 .a-tabs button.on{color:#fff}
