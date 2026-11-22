@@ -52,59 +52,47 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
 ## Pilar 2: Penyempurnaan Fungsional & Antarmuka Pengguna (UI/UX)
 
 > **Prioritas:** Tinggi  
-> **Status Saat Ini:** Backend REST API sudah menyediakan rute lengkap untuk pembaruan data (`PATCH`), namun antarmuka frontend belum menyediakan modal/tombol untuk aksi edit.
+> **Status:** SELESAI SEBAGIAN (Modal Edit/Delete Task & Project, Invite Team, RBAC Aktif)
 
 ### Checklist Pekerjaan
-- [ ] **2.1 Modal & Form Edit Task (Papan Kanban)**
-  - Di file `public/app.js`, tambahkan opsi `"Edit"` pada menu kartu task (`data-act="menu"`).
-  - Buat fungsi modal form edit task dengan nilai awal terisi (*pre-filled*):
-    - Judul Task
-    - Project Terkait
-    - Tag / Kategori
-    - Prioritas (High, Medium, Low)
-    - Target Selesai (*Due date*)
-    - Penugasan Anggota (*Assignees*)
-  - Hubungkan submit form ke API `PATCH /api/tasks/:id`.
-- [ ] **2.2 Modal Edit & Hapus Project di Dashboard**
-  - Di daftar project pada Dashboard, tambahkan tombol aksi menu (titik tiga atau ikon pensil/tempat sampah) untuk owner project / admin.
-  - Sediakan modal untuk mengubah nama project dan target tanggal selesai (*due date*).
-  - Sediakan tombol konfirmasi hapus project yang memanggil API `DELETE /api/projects/:id`.
+- [x] **2.1 Modal & Form Edit Task (Papan Kanban)**
+  - Opsi `"Edit task"` di menu kartu task (`data-act="menu"`).
+  - Modal form terisi awal (Title, Tag, Priority, Project, Due date, Assignees).
+  - Terhubung langsung ke API `PATCH /api/tasks/:id`.
+- [x] **2.2 Modal Edit & Hapus Project di Dashboard**
+  - Tombol ikon edit dan hapus pada baris project untuk owner/admin.
+  - Modal ubah nama & due date serta konfirmasi modal hapus project (`DELETE /api/projects/:id`).
 - [ ] **2.3 Fitur Edit Jadwal / Event Kalender**
-  - Pada tampilan kalender (`vCal`), saat event diklik, sediakan opsi untuk mengedit waktu, judul, dan tipe event selain tombol hapus yang sudah ada.
-  - Tambahkan endpoint `PATCH /api/events/:id` di `server/index.js` untuk mendukung pembaruan jadwal event.
+  - Pada tampilan kalender (`vCal`), opsi edit waktu, judul, dan tipe event selain tombol hapus.
 - [ ] **2.4 Drag & Drop di Layar Sentuh / Mobile UX**
-  - Optimalkan interaksi pemindahan kartu kanban pada perangkat seluler atau sediakan tombol geser cepat antar kolom tanpa harus membuka menu dropdown.
-
-**File Terkait:**
-* `public/app.js` (fungsi `vTasks`, `vDash`, `vCal`, objek aksi `ACT`)
-* `server/index.js` (endpoint `/api/tasks/:id`, `/api/projects/:id`, `/api/events/:id`)
+  - Optimalkan interaksi pemindahan kartu kanban pada perangkat seluler.
 
 ---
 
 ## Pilar 3: Fitur Akun, Keamanan, & Manajemen Pengguna
 
 > **Prioritas:** Sedang - Tinggi  
-> **Status Saat Ini:** Alur login dan registrasi sudah berjalan dengan verifikasi email, namun alur pemulihan akun (lupa password) dan pengelolaan keamanan profil belum lengkap.
+> **Status:** SELESAI SEBAGIAN (Profil Baru Lengkap, Avatar/Upload, Username Unik, RBAC Ketua Tim, Ganti Password Selesai)
 
 ### Checklist Pekerjaan
-- [ ] **3.1 Fitur Lupa Kata Sandi (Forgot / Reset Password)**
-  - *Backend:*
-    - Buat tabel atau kolom token reset password (`reset_hash`, `reset_exp`) di database SQLite.
-    - Endpoint `POST /api/auth/forgot-password`: Menerima email, membuat token acak berbatas waktu (misal 1 jam), dan mengirimkan email berisi tautan reset via Nodemailer.
-    - Endpoint `POST /api/auth/reset-password`: Menerima token dan password baru, memvalidasi masa berlaku, lalu memperbarui hash password (`scrypt`).
-  - *Frontend:*
-    - Tambahkan tombol "Lupa kata sandi?" di form login landing page.
-    - Buat tampilan input email pemulihan dan halaman/modal untuk memasukkan password baru.
-- [ ] **3.2 Fitur Ganti Password di Menu Pengaturan (Settings)**
-  - Tambahkan tab baru **"Security"** atau bagian khusus di halaman `#/settings`.
-  - Sediakan form: Password Lama, Password Baru (minimal 8 karakter), dan Konfirmasi Password Baru.
-  - Buat endpoint `POST /api/me/change-password` di backend dengan validasi password lama menggunakan `verifyPw`.
-- [ ] **3.3 Fitur Hapus Akun Sendiri (Self Account Deletion)**
-  - Sediakan tombol *"Hapus Akun"* di pengaturan akun pengguna dengan konfirmasi modal ganda (memasukkan password akun sebelum penghapusan diproses).
-  - Buat endpoint `DELETE /api/me` yang menghapus sesi, data pribadi, dan menonaktifkan/menghapus user terkait.
-- [ ] **3.4 Manajemen Sesi Aktif & Logout Seluruh Perangkat**
-  - Tampilkan daftar sesi perangkat yang sedang aktif di tab Security.
-  - Sediakan opsi *"Keluar dari semua perangkat lain"* (`DELETE FROM sessions WHERE user_id=? AND token_hash!=?`).
+- [x] **3.1 Menu Profil Baru & Lengkap**
+  - Pemilihan avatar ikon preset (12 pilihan menarik) atau upload gambar foto profil mandiri.
+  - Username unik per user (`@username`) dengan validasi anti-duplikasi.
+  - Dropdown divisi lengkap + pilihan kustom isi sendiri (`_custom`).
+  - Jabatan dihilangkan dari form pendaftaran & edit profil.
+  - Tempat lahir, tanggal lahir, domisili/alamat, dan switch opsional berbagi tanggal lahir ke tim.
+  - Notifikasi ucapan selamat ulang tahun otomatis ke seluruh tim saat hari ulang tahun tiba.
+- [x] **3.2 Fitur Ganti Password di Menu Pengaturan (Settings)**
+  - Tab baru **"Kata Sandi"** di halaman `#/settings`.
+  - Form Kata Sandi Saat Ini, Kata Sandi Baru, dan Konfirmasi (atau buat sandi baru bagi login Google).
+  - Endpoint `POST /api/me/password` dengan enkripsi `scrypt`.
+- [x] **3.3 Sistem Role Tim & RBAC (Role-Based Access Control)**
+  - Pembuat workspace / Admin otomatis menjadi **Ketua Tim**.
+  - Ketua Tim dapat mengatur role anggota tim: **Ketua Tim**, **Project Manager**, **Member**, **Viewer**.
+  - Modal penetapan role di menu Team via `PATCH /api/team/members/:id/role`.
+- [ ] **3.4 Fitur Lupa Kata Sandi (Forgot / Reset Password)**
+  - Endpoint `POST /api/auth/forgot-password` dan `POST /api/auth/reset-password` via email.
+- [ ] **3.5 Fitur Hapus Akun Sendiri & Manajemen Sesi Aktif**
 
 **File Terkait:**
 * `server/index.js`
