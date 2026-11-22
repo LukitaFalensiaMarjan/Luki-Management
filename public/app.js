@@ -431,7 +431,64 @@ function vSet() {
       : `<div class="tg-st"><span class="pill s-pending">Not connected</span><button class="btn sm primary" data-act="tg-link">${ic('send')}Connect Telegram</button></div>`;
     p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
   } else if (ST === 'look') {
-    p = `<h2>Warna &amp; Tampilan</h2><p>Pilih tema aksen warna untuk ruang kerja kamu. Seluruh tombol, highlight, dan elemen visual akan menyesuaikan dengan warna yang kamu pilih.</p><p class="lab2" style="margin-top:0">Aksen Warna Tema</p><div class="acc">${[['ocean', 'Ocean Blue (Default)', '#2563eb'], ['forest', 'Forest Green', '#16a34a'], ['plum', 'Plum Purple', '#7c3aed'], ['ember', 'Ember Orange', '#ea580c']].map(([k, l, c]) => `<button class="acb ${(m.accent || 'ocean') === k ? 'on' : ''}" data-act="accent" data-k="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div><p class="lab2">Awal Minggu</p><div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
+    const groups = [
+      {
+        title: 'Nuansa Biru',
+        items: [
+          ['ocean', 'Ocean Blue (Default)', '#2563eb'],
+          ['navy', 'Biru Navy', '#1e3a8a'],
+          ['slate-blue', 'Biru + Abu (Denim)', '#3b6084'],
+          ['sky', 'Biru Langit (Sky)', '#0284c7']
+        ]
+      },
+      {
+        title: 'Nuansa Kuning & Emas',
+        items: [
+          ['soft-yellow', 'Kuning Lembut (Honey)', '#d97706'],
+          ['sunshine', 'Kuning Nyala (Canary)', '#eab308']
+        ]
+      },
+      {
+        title: 'Nuansa Hijau & Alami',
+        items: [
+          ['forest', 'Hijau Forest', '#16a34a'],
+          ['sage', 'Hijau Sage / Mint', '#059669'],
+          ['olive', 'Hijau Zaitun (Olive)', '#65a30d']
+        ]
+      },
+      {
+        title: 'Nuansa Ungu & Berry',
+        items: [
+          ['plum', 'Ungu Plum', '#7c3aed'],
+          ['lavender', 'Lavender Lembut', '#9333ea'],
+          ['rose', 'Merah Mawar (Rose)', '#e11d48']
+        ]
+      },
+      {
+        title: 'Nuansa Hangat, Tanah & Tinta',
+        items: [
+          ['ember', 'Jingga Bara (Ember)', '#ea580c'],
+          ['terracotta', 'Merah Bata (Terracotta)', '#c2410c'],
+          ['mocha', 'Moka Kertas (Mocha)', '#78350f'],
+          ['ink', 'Tinta Arang (Charcoal)', '#1e293b']
+        ]
+      }
+    ];
+    const groupHtml = groups.map(g => `
+      <div class="acc-group">
+        <div class="acc-group-title">${g.title}</div>
+        <div class="acc">${g.items.map(([k, l, c]) => `
+          <button class="acb ${(m.accent || 'ocean') === k ? 'on' : ''}" data-act="accent" data-k="${k}" title="${l}">
+            <i style="background:${c}"></i><span>${l}</span>
+          </button>`).join('')}
+        </div>
+      </div>`).join('');
+    p = `<h2>Warna &amp; Tampilan</h2>
+      <p>Pilih tema aksen warna untuk ruang kerja kamu. Seluruh tombol, highlight teks, indikator navigasi, dan elemen visual akan menyesuaikan secara harmonis dengan warna yang kamu pilih.</p>
+      <p class="lab2" style="margin-top:0">Pilihan Aksen Warna Tema</p>
+      ${groupHtml}
+      <p class="lab2">Awal Minggu</p>
+      <div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
   } else {
     // default to 'security' (Kata Sandi)
     const pwForm = m.hasPassword ? `
@@ -1252,7 +1309,12 @@ const ACT = {
   st: b => { ST = b.dataset.k; paint(true); },
   discard: () => { paint(false); toast('Perubahan dibuang'); },
   tog: async b => { const k = b.dataset.k, v = S.me.notif[k] === false; b.setAttribute('aria-checked', v); try { await api('PATCH', '/api/me', { notif: { [k]: v } }); S.me.notif[k] = v; toast('Saved'); } catch (e) { b.setAttribute('aria-checked', !v); if (e.message !== 'auth') toast(e.message); } },
-  accent: b => { const k = b.dataset.k; document.documentElement.dataset.accent = k; mut('PATCH', '/api/me', { accent: k }, `Accent set to ${b.textContent.trim()}`, false); },
+  accent: b => {
+    const k = b.dataset.k;
+    document.documentElement.dataset.accent = k;
+    const title = b.getAttribute('title') || b.textContent.trim();
+    mut('PATCH', '/api/me', { accent: k }, `Warna tema diubah ke ${title}`, false);
+  },
   week: b => mut('PATCH', '/api/me', { week: +b.dataset.k }, `Week starts on ${b.textContent}`, false),
   'tg-link': async () => {
     try {

@@ -431,7 +431,13 @@ app.patch('/api/me', (req, res) => {
   if ('birthPlace' in b) f.birth_place = s(b.birthPlace, 50, 0);
   if ('birthDate' in b) f.birth_date = b.birthDate ? D(b.birthDate) : null;
   if ('shareBirthday' in b) f.share_birthday = b.shareBirthday ? 1 : 0;
-  if ('accent' in b) f.accent = en(b.accent, ['ocean', 'forest', 'plum', 'ember']);
+  if ('accent' in b) f.accent = en(b.accent, [
+    'ocean', 'navy', 'slate-blue', 'sky',
+    'soft-yellow', 'sunshine',
+    'forest', 'sage', 'olive',
+    'plum', 'lavender', 'rose',
+    'ember', 'terracotta', 'mocha', 'ink'
+  ]);
   if ('week' in b) f.week = en(+b.week, [0, 1]);
   if ('budget' in b) f.budget = money(b.budget);
   if ('notif' in b) { const cur = JSON.parse(u.notif); for (const k of ['assign', 'due', 'chat', 'report', 'personal']) if (typeof b.notif?.[k] === 'boolean') cur[k] = b.notif[k]; f.notif = JSON.stringify(cur); }
