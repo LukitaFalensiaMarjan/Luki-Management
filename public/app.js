@@ -431,7 +431,8 @@ function vSet() {
       : `<div class="tg-st"><span class="pill s-pending">Not connected</span><button class="btn sm primary" data-act="tg-link">${ic('send')}Connect Telegram</button></div>`;
     p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
   } else if (ST === 'look') {
-    p = `<h2>Appearance</h2><p>The accent re-tints the whole workspace, and is saved to your account.</p><p class="lab2" style="margin-top:0">Accent</p><div class="acc">${[['forest', 'Forest', '#1f7a4d'], ['ocean', 'Ocean', '#1e47b8'], ['plum', 'Plum', '#6b35c4'], ['ember', 'Ember', '#c2491d']].map(([k, l, c]) => `<button class="acb ${m.accent === k ? 'on' : ''}" data-act="accent" data-k="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div><p class="lab2">Week starts on</p><div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
+    const curTheme = document.documentElement.dataset.theme || localStorage.getItem('luki_theme') || 'handdrawn';
+    p = `<h2>Tampilan (Appearance)</h2><p>Sesuaikan gaya desain visual dan warna aksen ruang kerja kamu.</p><p class="lab2" style="margin-top:0">Gaya Desain UI</p><div class="pillb" style="margin-bottom:18px"><button class="${curTheme === 'handdrawn' ? 'on' : ''}" data-act="set-theme" data-theme="handdrawn">🎨 Hand-Drawn Doodle</button><button class="${curTheme === 'modern' ? 'on' : ''}" data-act="set-theme" data-theme="modern">✨ Modern Clean</button></div><p class="lab2">Aksen Warna</p><div class="acc">${[['forest', 'Forest', '#1f7a4d'], ['ocean', 'Ocean', '#1e47b8'], ['plum', 'Plum', '#6b35c4'], ['ember', 'Ember', '#c2491d']].map(([k, l, c]) => `<button class="acb ${m.accent === k ? 'on' : ''}" data-act="accent" data-k="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div><p class="lab2">Awal Minggu</p><div class="pillb">${['Sunday', 'Monday'].map((l, i) => `<button class="${m.week === i ? 'on' : ''}" data-act="week" data-k="${i}">${l}</button>`).join('')}</div>`;
   } else {
     // default to 'security' (Kata Sandi)
     const pwForm = m.hasPassword ? `
@@ -522,6 +523,8 @@ async function refresh() {
 function showAuth() {
   closeLayer(true); closePop(); es?.close(); es = null; S = null; AN = null; READY = {};
   document.body.className = 'auth'; document.documentElement.dataset.accent = 'ocean';
+  document.documentElement.dataset.theme = localStorage.getItem('luki_theme') || 'handdrawn';
+  updateThemeUI();
 }
 let vMail = '';
 const card = () => $('.a-card');
@@ -670,7 +673,9 @@ $$('[data-eye]').forEach(b => b.addEventListener('click', () => { const i = b.pr
 let inited = false;
 async function enter() {
   await load(); ttLoad();
-  document.documentElement.dataset.accent = S.me.accent; document.body.className = 'in';
+  document.documentElement.dataset.accent = S.me.accent;
+  document.documentElement.dataset.theme = localStorage.getItem('luki_theme') || 'handdrawn';
+  document.body.className = 'in';
   $('.admin-only').hidden = !S.me.admin;
   connect(); route();
 }
@@ -847,7 +852,29 @@ async function refreshTaskDetail(taskId) {
   }
 }
 
+function updateThemeUI() {
+  const isHand = (document.documentElement.dataset.theme || 'handdrawn') === 'handdrawn';
+  const lbl = $('#themeToggleLbl');
+  if (lbl) lbl.textContent = isHand ? 'Hand-Drawn' : 'Modern Clean';
+  const btn = $('#lpThemeBtn');
+  if (btn) btn.innerHTML = isHand ? '🎨 Hand-Drawn' : '✨ Modern Clean';
+}
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('luki_theme', t);
+  updateThemeUI();
+  if (cur === 'settings' && ST === 'look') paint(false);
+  toast(t === 'handdrawn' ? 'Gaya tampilan: Hand-Drawn Doodle diaktifkan' : 'Gaya tampilan: Modern Clean diaktifkan');
+}
+
 const ACT = {
+  'toggle-handdrawn': () => {
+    const next = (document.documentElement.dataset.theme || 'handdrawn') === 'handdrawn' ? 'modern' : 'handdrawn';
+    setTheme(next);
+  },
+  'set-theme': b => {
+    setTheme(b.dataset.theme || 'handdrawn');
+  },
   close: () => closeLayer(),
   'nav-open': () => document.body.classList.add('nav-open'),
   'nav-close': () => document.body.classList.remove('nav-open'),
@@ -1550,6 +1577,9 @@ addEventListener('hashchange', route);
 const AUTH_MSG = { verified: 'Email terverifikasi. Selamat datang!', invalid: 'Tautan verifikasi tidak valid atau kedaluwarsa. Login lalu kirim ulang email verifikasi.', disabled: 'Akun kamu dinonaktifkan admin.',
   google_off: 'Login Google belum diaktifkan di server.', google_fail: 'Login Google gagal, coba lagi.', google_unverified: 'Email Google kamu belum terverifikasi oleh Google.', closed: 'Pendaftaran akun baru sedang ditutup.' };
 document.addEventListener('DOMContentLoaded', async () => {
+  const curTheme = localStorage.getItem('luki_theme') || 'handdrawn';
+  document.documentElement.dataset.theme = curTheme;
+  updateThemeUI();
   $$('[data-i]').forEach(e => e.innerHTML = ic(e.dataset.i));
   const params = new URLSearchParams(location.search);
   const q = params.get('auth');

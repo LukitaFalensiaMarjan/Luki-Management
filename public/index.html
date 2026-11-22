@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id" data-accent="ocean">
+<html lang="id" data-accent="ocean" data-theme="handdrawn">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,7 +8,7 @@
 <title>LUKI MANAGEMENT — Kerja tim & hidup pribadi, satu tempat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="boot">
@@ -17,89 +17,153 @@
 <div id="auth">
   <header class="lp-h">
     <a class="a-brand" href="#top" aria-label="LUKI MANAGEMENT"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v13a3 3 0 0 0 3 3h6"/><path d="M13 9l3-3 3 3"/></svg></span><b>LUKI<small>MANAGEMENT</small></b></a>
-    <nav class="lp-nav" id="lpNav"><a href="#fitur">Fitur</a><a href="#pribadi">Pribadi</a><a href="#telegram">Telegram</a><a href="#faq">FAQ</a>
-      <span class="lp-cta"><button class="btn ghost" data-go="login">Masuk</button><button class="btn primary" data-go="register">Daftar gratis</button></span></nav>
+    <nav class="lp-nav" id="lpNav">
+      <a href="#fitur">Fitur Tim</a>
+      <a href="#pribadi">Ruang Pribadi</a>
+      <a href="#telegram">Bot Telegram</a>
+      <a href="#faq">FAQ</a>
+      <span class="lp-cta">
+        <button type="button" class="btn sm ghost" data-act="toggle-handdrawn" id="lpThemeBtn" title="Ganti Gaya Tampilan">🎨 <span id="themeToggleLbl">Hand-Drawn</span></button>
+        <button class="btn ghost" data-go="login">Masuk</button>
+        <button class="btn primary" data-go="register">Mulai Gratis</button>
+      </span>
+    </nav>
     <button class="ibtn lp-menu" data-lp-menu aria-label="Buka menu" aria-expanded="false"><span data-i="menu"></span></button>
   </header>
 
   <main id="top">
     <section class="lp-hero">
       <div class="lp-copy">
-        <span class="chip">Baru: area pribadi + bot Telegram</span>
-        <h1>Kelola kerja tim &amp; hidup pribadi dalam <em>satu tempat</em>.</h1>
-        <p>Project, tugas, kalender, dan chat tim — plus keuangan, catatan, wishlist, dan rencana travel pribadi. Pengingat deadline otomatis dikirim ke Telegram.</p>
-        <div class="lp-btns"><button class="btn primary big" data-go="register">Mulai gratis</button><a class="btn big gbtn g-only" href="/api/auth/google"><span class="g-ic" aria-hidden="true"></span>Lanjut dengan Google</a></div>
-        <ul class="lp-trust"><li><span data-i="check"></span>Verifikasi email</li><li><span data-i="check"></span>Data pribadi hanya milikmu</li><li><span data-i="check"></span>Rapi di HP</li></ul>
+        <span class="chip">✨ Workspace Terintegrasi · Kolaborasi Tim &amp; Personal</span>
+        <h1>Kelola Kolaborasi Tim &amp; Produktivitas Pribadi dalam <em class="marker-hl">Satu Tempat</em>.</h1>
+        <p>Platform cerdas untuk mengorkestrasi proyek, tugas kanban, kalender tim terpadu, dan obrolan instan — disempurnakan dengan ruang keuangan pribadi, catatan ide penting, serta pengingat otomatis via Bot Telegram.</p>
+        <div class="lp-btns">
+          <button class="btn primary big" data-go="register">Mulai Gratis Sekarang</button>
+          <a class="btn big gbtn g-only" href="/api/auth/google"><span class="g-ic" aria-hidden="true"></span>Lanjut dengan Google</a>
+        </div>
+        <ul class="lp-trust">
+          <li><span data-i="check"></span>Email Terverifikasi Resmi</li>
+          <li><span data-i="check"></span>Data Pribadi Terisolasi &amp; Aman</li>
+          <li><span data-i="check"></span>Desain Responsif (HP &amp; Desktop)</li>
+        </ul>
       </div>
       <div class="lp-mock" aria-hidden="true">
         <div class="mk-top"><i></i><i></i><i></i><span>luki.app/dashboard</span></div>
         <div class="mk-body">
-          <div class="mk-stats"><div class="on"><small>Total Projects</small><b>24</b></div><div><small>Ended</small><b>11</b></div><div><small>Running</small><b>11</b></div></div>
-          <div class="mk-row"><div class="mk-bars"><i style="height:45%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:95%"></i><i style="height:35%"></i><i style="height:70%"></i></div>
-            <div class="mk-ring"><div><b>46%</b><small>Ended</small></div></div></div>
-          <div class="mk-kan"><div><small>To do</small><p>Passkey sign-in</p><p>API docs</p></div><div><small>In review</small><p class="hl">Design login</p></div><div><small>Done</small><p>Q4 launch</p></div></div>
+          <div class="mk-stats">
+            <div class="on"><small>Total Proyek</small><b>24</b></div>
+            <div><small>Selesai</small><b>13</b></div>
+            <div><small>Sedang Berjalan</small><b>11</b></div>
+          </div>
+          <div class="mk-row">
+            <div class="mk-bars"><i style="height:45%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:95%"></i><i style="height:35%"></i><i style="height:70%"></i></div>
+            <div class="mk-ring"><div><b>54%</b><small>Tercapai</small></div></div>
+          </div>
+          <div class="mk-kan">
+            <div><small>To do</small><p>Integrasi Google SSO</p><p>Dokumentasi API</p></div>
+            <div><small>In review</small><p class="hl marker-hl">Desain Hand-Drawn UI</p></div>
+            <div><small>Done</small><p>Rilis Versi 1.0</p></div>
+          </div>
         </div>
-        <div class="mk-tg"><b>LUKI Bot</b><p>⏰ H-3: Task "Design login" jatuh tempo 20 Nov.</p></div>
+        <div class="mk-tg">
+          <b>LUKI Reminder Bot</b>
+          <p>⏰ H-3: Task "Desain Hand-Drawn UI" jatuh tempo 25 Nov. Siapkan review!</p>
+        </div>
       </div>
     </section>
 
     <section class="lp-sec" id="fitur">
-      <p class="lp-k">Fitur tim</p><h2>Semua yang tim kamu butuhkan</h2>
+      <p class="lp-k">KOLABORASI &amp; EFISIENSI KERJA</p>
+      <h2>Segala yang Dibutuhkan Tim Modern untuk Bergerak Lebih Cepat</h2>
       <div class="lp-grid">
-        <article><span data-i="dash"></span><h3>Dashboard &amp; analitik</h3><p>Statistik project, throughput, waktu kerja, dan kontributor teratas dari data asli.</p></article>
-        <article><span data-i="tasks"></span><h3>Kanban drag &amp; drop</h3><p>Pindahkan task antar tahap, filter prioritas, dan tugaskan ke rekan.</p></article>
-        <article><span data-i="cal"></span><h3>Kalender tim</h3><p>Meeting, review, dan deadline task/project dalam satu kalender.</p></article>
-        <article><span data-i="chat"></span><h3>Chat realtime</h3><p>Ngobrol langsung dengan rekan tim, lengkap dengan status online.</p></article>
-        <article><span data-i="file"></span><h3>Laporan PDF otomatis</h3><p>Project selesai? Laporan lengkap langsung dibuat dan dikirim ke tim.</p></article>
-        <article><span data-i="shield"></span><h3>Panel admin</h3><p>Kelola user, verifikasi, nonaktifkan akun, dan kirim pengumuman.</p></article>
+        <article><span data-i="dash"></span><h3>Dashboard &amp; Analitik Real-Time</h3><p>Pantau progres proyek, rasio throughput tugas, dan kontribusi anggota melalui visualisasi data aktual yang akurat.</p></article>
+        <article><span data-i="tasks"></span><h3>Papan Kanban &amp; Sub-Task</h3><p>Kelola tahapan tugas secara visual dengan drag &amp; drop, filter skala prioritas, custom tag divisi, dan checklist pekerjaan.</p></article>
+        <article><span data-i="cal"></span><h3>Kalender Terpadu &amp; Jadwal</h3><p>Sinkronisasi jadwal pertemuan tim, tenggat waktu proyek, dan agenda evaluasi dalam satu kalender interaktif.</p></article>
+        <article><span data-i="chat"></span><h3>Ruang Obrolan Real-Time (Chat)</h3><p>Komunikasi langsung antar rekan tim dengan indikator status kehadiran aktif dan notifikasi pesan instan.</p></article>
+        <article><span data-i="file"></span><h3>Laporan Eksekutif PDF Otomatis</h3><p>Proyek selesai? Sistem langsung menyusun dan membagikan laporan ringkasan performa resmi berformat PDF.</p></article>
+        <article><span data-i="shield"></span><h3>Multi-Team &amp; Hak Akses (RBAC)</h3><p>Kelola banyak tim kerja, tentukan peran fleksibel (Ketua Tim, Anggota, Viewer), serta delegasi tugas yang transparan.</p></article>
       </div>
     </section>
 
     <section class="lp-sec lp-split" id="pribadi">
       <div>
-        <p class="lp-k">Area pribadi</p><h2>Ruang pribadimu, hanya untukmu</h2>
-        <p class="lp-p">Setiap user punya ruang pribadi yang tidak bisa dilihat siapa pun — termasuk admin.</p>
+        <p class="lp-k">PRIVASI &amp; MANAJEMEN DIRI</p>
+        <h2>Ruang Pribadi Eksklusif, Khusus untuk Anda Sendiri</h2>
+        <p class="lp-p">Setiap pengguna memiliki area terenkripsi mandiri. Data finansial, catatan penting, dan rencana personal Anda terisolasi 100% dan tidak dapat diakses oleh siapa pun — termasuk admin.</p>
         <ul class="lp-list">
-          <li><span data-i="wallet"></span><div><b>Keuangan</b><small>Catat pemasukan &amp; pengeluaran, budget bulanan, grafik per kategori.</small></div></li>
-          <li><span data-i="note"></span><div><b>Catatan</b><small>Catatan berwarna, sematkan yang penting, pasang pengingat.</small></div></li>
-          <li><span data-i="tasks"></span><div><b>Tugas pribadi</b><small>To-do dengan tenggat dan pengingat H-7 sampai H-1.</small></div></li>
-          <li><span data-i="gift"></span><div><b>Wishlist</b><small>Barang impian lengkap dengan harga, link, dan prioritas.</small></div></li>
-          <li><span data-i="plane"></span><div><b>Rencana travel</b><small>Tanggal, budget, dan countdown keberangkatan.</small></div></li>
+          <li><span data-i="wallet"></span><div><b>Manajemen Finansial</b><small>Pantau arus kas (pemasukan &amp; pengeluaran), monitor sisa anggaran bulanan, dan evaluasi grafik per kategori.</small></div></li>
+          <li><span data-i="note"></span><div><b>Catatan &amp; Ide Cepat</b><small>Dokumentasikan inspirasi penting dengan kode warna tematik, sematkan catatan prioritas, dan pasang alarm pengingat.</small></div></li>
+          <li><span data-i="tasks"></span><div><b>Agenda Tugas Personal</b><small>Atur to-do list harian dengan tenggat waktu jelas dan notifikasi pengingat otomatis H-7 hingga H-1.</small></div></li>
+          <li><span data-i="gift"></span><div><b>Wishlist Impian</b><small>Dokumentasikan target barang impian lengkap dengan estimasi harga, tautan referensi, dan skala prioritas.</small></div></li>
+          <li><span data-i="plane"></span><div><b>Rencana Perjalanan (Travel)</b><small>Rencanakan destinasi liburan atau dinas, alokasikan anggaran biaya, dan pantau hitung mundur tanggal keberangkatan.</small></div></li>
         </ul>
       </div>
       <div class="lp-phone" aria-hidden="true">
-        <div class="ph-in"><small>Keuangan · November</small><b class="ph-bal">Rp4.250.000</b><span class="ph-sub">Saldo bulan ini</span>
-          <div class="ph-cards"><div><small>Masuk</small><b>Rp8,5jt</b></div><div><small>Keluar</small><b>Rp4,25jt</b></div></div>
-          <div class="ph-tx"><p><span>Makan siang</span><b>-Rp25.000</b></p><p><span>Transport</span><b>-Rp40.000</b></p><p><span>Gaji</span><b class="in">+Rp8.500.000</b></p></div></div>
+        <div class="ph-in">
+          <small>Keuangan Pribadi · November</small>
+          <b class="ph-bal"><span class="marker-hl">Rp4.250.000</span></b>
+          <span class="ph-sub">Sisa Anggaran Bulan Ini</span>
+          <div class="ph-cards">
+            <div><small>Pemasukan</small><b>Rp8,5jt</b></div>
+            <div><small>Pengeluaran</small><b>Rp4,25jt</b></div>
+          </div>
+          <div class="ph-tx">
+            <p><span>Makan siang</span><b>-Rp25.000</b></p>
+            <p><span>Transportasi</span><b>-Rp40.000</b></p>
+            <p><span>Gaji Bulanan</span><b class="in">+Rp8.500.000</b></p>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="lp-sec lp-split rev" id="telegram">
       <div class="lp-chat" aria-hidden="true">
-        <p class="bot">⏰ H-7: Perjalanan ke Bali pada 24 Nov 2026. Jangan lupa cek tiket!</p>
+        <p class="bot">⏰ H-7: Rencana perjalanan ke Bali pada 24 Nov 2026. Jangan lupa cek tiket &amp; hotel!</p>
         <p class="me">/catat 25000 makan siang</p>
-        <p class="bot">Pengeluaran dicatat: Rp25.000 — makan siang</p>
-        <p class="bot">Project "Q4 Launch Site" selesai. Laporan PDF terlampir.</p>
+        <p class="bot">✅ Pengeluaran dicatat: Rp25.000 — makan siang</p>
+        <p class="bot">🎉 Project "Revamp LUKI Management" selesai. Laporan PDF resmi terlampir.</p>
       </div>
       <div>
-        <p class="lp-k">Integrasi Telegram</p><h2>Pengingat yang benar-benar sampai</h2>
-        <p class="lp-p">Hubungkan akunmu sekali, lalu terima pengingat deadline H-7, H-3, H-2, dan H-1 untuk task, project, tugas pribadi, dan travel. Catat pengeluaran langsung dari chat.</p>
-        <div class="lp-steps"><div><b>1</b><span>Daftar &amp; verifikasi email</span></div><div><b>2</b><span>Settings → Connect Telegram</span></div><div><b>3</b><span>Terima pengingat otomatis</span></div></div>
+        <p class="lp-k">OTOMASI PENGINGAT CERDAS</p>
+        <h2>Pengingat Tepat Waktu yang Selalu Sampai ke Ponsel Anda</h2>
+        <p class="lp-p">Hubungkan akun Anda sekali saja dengan bot resmi @LukiManagementBot. Dapatkan notifikasi proaktif pada H-7, H-3, H-2, dan H-1 sebelum deadline tugas tiba. Anda bahkan bisa mencatat pengeluaran harian langsung melalui chat Telegram!</p>
+        <div class="lp-steps">
+          <div><b>1</b><span>Daftar akun &amp; verifikasi email</span></div>
+          <div><b>2</b><span>Buka Settings → Hubungkan Telegram</span></div>
+          <div><b>3</b><span>Terima pengingat &amp; catat tugas otomatis</span></div>
+        </div>
       </div>
     </section>
 
     <section class="lp-sec" id="faq">
-      <p class="lp-k">FAQ</p><h2>Pertanyaan yang sering ditanya</h2>
+      <p class="lp-k">PUSAT INFORMASI &amp; BANTUAN</p>
+      <h2>Pertanyaan yang Sering Diajukan</h2>
       <div class="lp-faq">
-        <details><summary>Kenapa harus verifikasi email?</summary><p>Supaya hanya pemilik email asli yang bisa memakai akun, dan notifikasi penting sampai ke orang yang tepat. Login Google memakai email yang sudah diverifikasi Google.</p></details>
-        <details><summary>Apakah admin bisa melihat data pribadiku?</summary><p>Tidak. Keuangan, catatan, tugas, wishlist, dan travel hanya bisa diakses oleh pemilik akun.</p></details>
-        <details><summary>Bagaimana menghubungkan Telegram?</summary><p>Masuk, buka Settings → Notifications → Connect Telegram, lalu tekan Start di bot.</p></details>
-        <details><summary>Apakah bisa dipakai di HP?</summary><p>Bisa. Tampilan menyesuaikan layar iPhone dan Android dengan menu samping yang sama seperti di desktop.</p></details>
+        <details>
+          <summary>Mengapa akun baru wajib melakukan verifikasi email?</summary>
+          <p>Verifikasi email menjamin keamanan penuh workspace Anda, memastikan hanya pemilik sah yang mengakses akun, serta memastikan seluruh dokumen penting (seperti laporan proyek PDF dan notifikasi reset kata sandi) diterima dengan tepat dan aman.</p>
+        </details>
+        <details>
+          <summary>Apakah administrator dapat melihat data yang saya simpan di Ruang Pribadi?</summary>
+          <p>Sama sekali tidak. Seluruh data keuangan, catatan rahasia, agenda to-do personal, dan rencana travel Anda dienkripsi serta diisolasi khusus untuk akun Anda sendiri. Privasi Anda terjaga 100%.</p>
+        </details>
+        <details>
+          <summary>Bagaimana cara kerja Bot Telegram dan apa saja perintahnya?</summary>
+          <p>Bot terhubung secara aman tanpa memerlukan domain publik. Cukup buka menu <b>Settings → Notifications → Connect Telegram</b>, lalu tekan Start di bot Telegram. Anda otomatis menerima pengingat deadline tugas, serta dapat mencatat pengeluaran instan lewat perintah seperti <code>/catat 25000 makan siang</code>.</p>
+        </details>
+        <details>
+          <summary>Apakah antarmuka LUKI MANAGEMENT mendukung akses dari smartphone?</summary>
+          <p>Ya, sepenuhnya responsif. Tampilan antarmuka kami dirancang adaptif mengikuti resolusi layar smartphone (Android &amp; iOS) maupun laptop/desktop tanpa mengurangi kelengkapan fitur apa pun.</p>
+        </details>
       </div>
     </section>
 
     <section class="lp-sec lp-auth" id="masuk">
-      <div class="lp-auth-copy"><p class="lp-k">Mulai sekarang</p><h2>Masuk ke workspace kamu</h2><p class="lp-p">Pakai akun Google atau email &amp; password. Akun baru wajib verifikasi email sebelum bisa dipakai.</p></div>
+      <div class="lp-auth-copy">
+        <p class="lp-k">MULAI SEKARANG</p>
+        <h2>Masuk ke Ruang Kerja Anda</h2>
+        <p class="lp-p">Gunakan akun Google terverifikasi atau kombinasi email dan kata sandi Anda. Akun baru wajib verifikasi email sebelum dapat digunakan.</p>
+      </div>
       <div class="a-card">
         <div class="a-tabs" role="tablist"><button role="tab" class="on" data-tab="login">Login</button><button role="tab" data-tab="register">Register</button><i></i></div>
         <div class="g-only"><a class="btn gbtn big wide" href="/api/auth/google"><span class="g-ic" aria-hidden="true"></span><span class="g-txt">Lanjut dengan Google</span></a><p class="or"><span>atau dengan email</span></p></div>
