@@ -966,20 +966,22 @@ function msgHtml(m, prev) {
   const mine = m.from_id === S.me.id, d = iso(new Date(m.created_at));
   const sep = !prev || iso(new Date(prev.created_at)) !== d ? `<div class="msep">${d === off(0) ? 'Today' : short(d)}</div>` : '';
   const senderName = m.from_name || mem(m.from_id)?.name || (mine ? 'Kamu' : 'Member');
-  const senderInfo = !mine && (m.channel || m.from_name) ? `<small class="msg-sender">${esc(senderName)}</small>` : '';
+  const senderLabel = `<span class="msg-sender ${mine ? 'me-label' : ''}">${esc(senderName)}</span>`;
 
   const quoteHtml = m.reply_to_id ? `
     <div class="msg-quote" data-goto="${m.reply_to_id}" title="Klik untuk lompat ke pesan asli">
       <div class="msg-quote-cnt">
         <b class="msg-quote-name">${esc(m.reply_name || 'Balasan')}</b>
-        <div class="msg-quote-txt">${esc(m.reply_body ? m.reply_body.slice(0, 90) : 'Pesan')}</div>
+        <div class="msg-quote-txt">${esc(m.reply_body ? m.reply_body.slice(0, 80) : 'Pesan')}</div>
       </div>
     </div>
   ` : '';
 
-  return `${sep}<div class="msg ${mine ? 'me' : ''}" id="msg-${m.id}" data-id="${m.id}">
-    <button type="button" class="msg-reply-trigger" data-act="trigger-reply" data-id="${m.id}" data-who="${esc(senderName)}" data-snippet="${esc((m.body || '').slice(0, 80))}" title="Balas pesan">${ic('reply')}</button>
-    ${senderInfo}
+  return `${sep}<div class="msg ${mine ? 'msg-me' : ''}" id="msg-${m.id}" data-id="${m.id}">
+    <div class="msg-header">
+      ${senderLabel}
+      <button type="button" class="msg-reply-trigger" data-act="trigger-reply" data-id="${m.id}" data-who="${esc(senderName)}" data-snippet="${esc((m.body || '').slice(0, 80))}" title="Balas pesan">${ic('reply')}</button>
+    </div>
     ${quoteHtml}
     <div class="msg-cnt">${formatMsgBody(m.body)}</div>
     <small class="msg-time">${hhmm(m.created_at)}</small>
