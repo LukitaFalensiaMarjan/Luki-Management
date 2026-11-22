@@ -648,6 +648,9 @@ $('#fReg').addEventListener('submit', e => {
   e.preventDefault(); const f = e.target, d = Object.fromEntries(new FormData(f));
   if (d.name.trim().length < 2) return authErr(f, 'Nama minimal 2 karakter');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(d.email.trim())) return authErr(f, 'Email tidak valid');
+  const un = (d.username || '').trim().toLowerCase();
+  if (!un) return authErr(f, 'Username unik wajib diisi');
+  if (!/^[a-z0-9_.]{3,30}$/.test(un)) return authErr(f, 'Username hanya boleh huruf kecil, angka, titik, atau garis bawah (3-30 karakter)');
   if (d.password.length < 8) return authErr(f, 'Password minimal 8 karakter');
   if (d.password !== d.confirm) return authErr(f, 'Konfirmasi password tidak sama');
   const div = d.division_sel === '_custom' ? (d.division_custom || '').trim() : d.division_sel;
@@ -656,7 +659,7 @@ $('#fReg').addEventListener('submit', e => {
     name: d.name.trim(),
     email: d.email.trim().toLowerCase(),
     password: d.password,
-    username: (d.username || '').trim().toLowerCase(),
+    username: un,
     division: div
   };
   authSubmit(f, '/api/auth/register', payload);

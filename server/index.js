@@ -61,9 +61,15 @@ app.post('/api/auth/register', async (req, res) => {
   let un = (b.username ? s(b.username, 30, 3) : email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_.]/g, '');
   if (!/^[a-z0-9_.]{3,30}$/.test(un)) un = email.split('@')[0].slice(0, 20);
   const ex = one('SELECT * FROM users WHERE email=?', email);
-  if (ex && ex.email_verified) throw E(409, 'Email sudah terdaftar. Silakan login.');
-  if (one('SELECT id FROM users WHERE username=? AND email!=?', un, email)) {
-    un = `${un}${Math.floor(Math.random() * 900 + 100)}`;
+  if (ex && ex.email_verified) {
+    if (ex.google_id && !ex.pass_hash) {
+      throw E(409, 'Email ini sudah terdaftar melalui akun Google. Anda tidak perlu mendaftar ulang! Silakan login langsung menggunakan tombol "Lanjut dengan Google", atau gunakan "Lupa Kata Sandi" jika ingin membuat password mandiri.');
+    }
+    throw E(409, 'Email ini sudah terdaftar di LUKI MANAGEMENT. Silakan masuk ke akun Anda melalui tab Login.');
+  }
+  const exUn = one('SELECT id, email FROM users WHERE username=?', un);
+  if (exUn && (!ex || exUn.id !== ex.id)) {
+    throw E(409, `Username '@${un}' sudah digunakan oleh pengguna lain. Silakan pilih username yang berbeda.`);
   }
   const hash = await hashPw(pw);
   const isFirst = firstUser();
