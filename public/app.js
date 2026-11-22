@@ -274,7 +274,7 @@ function vTeam() {
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <h2>${esc(curTeam.name)}</h2>
             <span class="role-badge role-lead">👑 Peranmu: ${esc(myRoleInTeam)}</span>
-            <span class="div-badge" style="background:var(--line);color:var(--txt);border:none">${curTeam.memberCount || S.members.length} Anggota</span>
+            <span class="role-badge role-count">👥 ${curTeam.memberCount || curMembers.length} Anggota</span>
           </div>
           <p>${esc(curTeam.description || 'Ruang kerja kolaborasi tim.')}</p>
         </div>
