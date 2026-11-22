@@ -121,10 +121,13 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
   - Buat tabel database untuk grup obrolan (`channels` dan `channel_members`).
   - Sediakan channel bawaan untuk setiap project yang dibuat (misal: `#project-billing-portal`).
   - Izinkan anggota project berdiskusi bersama, bukan hanya lewat pesan privat (1-on-1).
-- [x] **4.3 Multi-Team & Per-Team RBAC (Multi-Ruang Kerja Tim)**
-  - Dukungan membuat tim lebih dari satu (`teams` table dengan nama, logo/ikon preset, deskripsi, dan pembuat tim).
-  - Role tim bersifat independen per tim (`team_members` table dengan role `Ketua Tim`, `Project Manager`, `Member`, `Viewer`): seorang user bisa menjadi Ketua di Tim A dan Member di Tim B.
-  - Dropdown switcher tim instan di tampilan Team (`vTeam`) dan modal CRUD tim (`POST/PATCH/DELETE /api/teams`, `PATCH /api/teams/:id/members/:userId/role`).
+- [x] **4.3 Multi-Team & Per-Team RBAC (Multi-Ruang Kerja Tim & Isolasi Workspace)**
+  - Dukungan membuat tim lebih dari satu (`teams` table dengan nama, logo/ikon preset, deskripsi, kode unik tim `LK-XXXXXX`, dan pembuat tim).
+  - **Isolasi Pendaftaran Baru:** Registrasi baru otomatis memiliki tim independen sendiri (`Tim [Nama]`) sebagai Ketua Tim dan tidak pernah otomatis masuk ke tim orang lain tanpa izin.
+  - **Undangan Bergabung Tim:** Bergabung ke tim wajib melalui **Tautan Undangan Langsung** (`/#join=LK-XXXXXX`) atau memasukkan **Kode Unik Tim** via modal `🔑 Gabung Tim`.
+  - **Otorisasi Role Khusus Ketua Tim:** Hanya user dengan role **Ketua Tim** pada tim bersangkutan yang berwenang mengubah role anggota atau mengeluarkan anggota dari tim (`PATCH /api/teams/:id/members/:userId/role`).
+  - **Cakupan Project (Workspace Tim vs Proyek Sendiri):** Saat membuat project baru, user dapat memilih untuk menempatkannya pada **Tim** (otomatis sinkron ke seluruh anggota tim di Kanban, Kalender, Dashboard, dan Analitik) atau **Proyek Sendiri / Personal** (hanya terlihat oleh user pembuat).
+  - Dropdown switcher tim instan di tampilan Team (`vTeam`) dan modal CRUD tim (`POST/PATCH/DELETE /api/teams`).
 
 ### Checklist Ruang Pribadi (Personal Space)
 - [ ] **4.4 Transaksi Keuangan Berulang (Recurring Transactions)**
