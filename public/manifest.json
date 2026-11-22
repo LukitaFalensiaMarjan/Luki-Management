@@ -1,0 +1,19 @@
+{
+  "name": "LUKI MANAGEMENT",
+  "short_name": "LUKI",
+  "description": "Platform cerdas orkestrasi proyek, tugas kanban, kalender tim, dan ruang pribadi.",
+  "start_url": "/#/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf7ee",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

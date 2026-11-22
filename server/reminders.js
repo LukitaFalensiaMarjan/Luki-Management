@@ -52,10 +52,10 @@ function checkBirthdays() {
     // Notify teammates
     const others = all('SELECT id FROM users WHERE id!=? AND disabled=0 AND email_verified=1', u.id);
     for (const o of others) {
-      notify(o.id, 'announce', `🎉 Hari ini ${u.name} berulang tahun! Jangan lupa ucapkan selamat ulang tahun! 🎂`);
+      notify(o.id, 'announce', `Hari ini ${u.name} berulang tahun! Jangan lupa ucapkan selamat ulang tahun!`);
     }
     // Birthday wish to the member themselves
-    notify(u.id, 'announce', `🎂 Selamat ulang tahun, ${u.name}! Semoga harimu menyenangkan dan sukses selalu! 🎉`);
+    notify(u.id, 'announce', `Selamat ulang tahun, ${u.name}! Semoga harimu menyenangkan dan sukses selalu!`);
 
     run('INSERT OR IGNORE INTO reminders(kind,ref_id,due,days,user_id,sent_at) VALUES(?,?,?,?,?,?)', 'bday', u.id, key, 0, u.id, now());
   }

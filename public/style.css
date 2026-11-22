@@ -283,12 +283,18 @@ button.pill:hover{transform:scale(1.05)}
 .tip b{display:block;font-size:14px}.tip.on{opacity:1}
 .lg2{display:flex;gap:12px;font-size:10.5px;color:var(--mut);align-items:center}
 .lg2 i{display:inline-block;width:14px;border-top:2.5px solid var(--ac);margin-right:4px;vertical-align:middle}.lg2 i.d{border-top:2px dashed #94a3b8}
-.donut{position:relative;width:150px;margin:6px auto 12px}
-.donut svg{width:100%;display:block;transform:rotate(-90deg)}
+.donut{position:relative;width:170px;height:170px;margin:10px auto 14px}
+.donut svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
 .donut circle{transition:stroke-dasharray .8s var(--ease)}
-.donut .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
-.donut .c b{font-size:20px;font-weight:800;line-height:1.1}.donut .c small{font-size:10px;color:var(--mut)}
-.dl{display:grid;gap:7px;font-size:11.5px}.dl div{display:flex;align-items:center;gap:8px}.dl i{width:8px;height:8px;border-radius:50%}.dl b{margin-left:auto}
+.donut .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px;pointer-events:none}
+.donut .c b{font-weight:800;line-height:1.15;color:#0f172a;white-space:nowrap;font-family:'Patrick Hand',sans-serif;max-width:105px;overflow:hidden;text-overflow:ellipsis}
+.donut .c small{font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
+.dl{display:flex;flex-direction:column;gap:8px;margin-top:14px;background:#ffffff;border:1.5px solid #0f172a;box-shadow:2px 2px 0 #0f172a;border-radius:12px;padding:12px}
+.dl>div{display:flex;align-items:center;gap:8px;padding:4px 0}
+.dl>div+div{border-top:1px dashed #cbd5e1}
+.dl i{width:10px;height:10px;border-radius:50%;flex:none;border:1px solid #0f172a}
+.dl-n{flex:1;font-size:12.5px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dl b{font-size:12.5px;font-weight:700;color:#0f172a;white-space:nowrap;margin-left:auto}
 .heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px}
 .heat i{aspect-ratio:1;border-radius:4px;background:color-mix(in srgb,var(--ac) calc(var(--l)*23%),#e9edf5);animation:fade .5s both;animation-delay:calc(var(--d)*8ms)}
 .hl{display:flex;gap:3px;align-items:center;font-size:10px;color:var(--mut)}
@@ -587,10 +593,17 @@ code{background:var(--bg);padding:1px 5px;border-radius:5px;font-size:11px}
 .mbar b{font-size:15px;min-width:130px;text-align:center}.mbar .btn{margin-left:auto}
 .txd+.txd{margin-top:8px}
 .txh{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;color:var(--mut);padding:6px 4px;border-bottom:1px solid var(--line)}
-.txr{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 4px;border-radius:10px;transition:background .2s}
-.txr:hover{background:var(--bg)}
-.txi{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:15px;background:#fdeceb}.txi.income{background:#eaf7ee}
-.amt{white-space:nowrap;font-size:13px}
+.txr{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 8px;border-radius:12px;border:1.5px solid transparent;transition:all .15s}
+.txr:hover{background:#ffffff;border-color:#0f172a;box-shadow:2px 2px 0 #0f172a}
+.txi{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:800;background:#fdeceb;border:1.5px solid #0f172a}.txi.income{background:#eaf7ee}
+.tx-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;text-align:left}
+.tx-title{font-size:13.5px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.tx-tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;border:1.5px solid #0f172a;box-shadow:1px 1px 0 #0f172a;background:#f8fafc;color:#0f172a;white-space:nowrap;display:inline-flex;align-items:center}
+.tx-tag.wallet{background:#eff6ff;color:#1e40af}
+.tx-tag.recur{background:#fef3c7;color:#92400e}
+.tx-cat{font-size:11.5px;font-weight:600;color:var(--mut);display:inline-flex;align-items:center}
+.amt{white-space:nowrap;font-size:13.5px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-left:auto}
 .rchip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--ac);background:var(--ac-soft);padding:1px 7px;border-radius:99px;white-space:nowrap}
 .rchip .ic{width:11px;height:11px}
 .dl div{min-width:0}.dl-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

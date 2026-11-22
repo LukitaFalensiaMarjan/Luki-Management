@@ -59,6 +59,8 @@ const ICON = {
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   alarm: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3L2 6M22 6l-3-3"/>',
+  attach: '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>',
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
@@ -78,9 +80,9 @@ const mem = id => S.members.find(m => m.id === id);
 const ini = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const hue = id => (id * 47) % 360;
 const AVATAR_PRESETS = [
-  ['preset:fox', '🦊', 'Fox'], ['preset:rocket', '🚀', 'Rocket'], ['preset:cat', '🐱', 'Cat'], ['preset:lion', '🦁', 'Lion'],
-  ['preset:star', '⭐', 'Star'], ['preset:fire', '🔥', 'Fire'], ['preset:coffee', '☕', 'Coffee'], ['preset:laptop', '💻', 'Tech'],
-  ['preset:palette', '🎨', 'Design'], ['preset:crown', '👑', 'Crown'], ['preset:target', '🎯', 'Focus'], ['preset:plant', '🌿', 'Growth']
+  ['preset:blue', 'LK', 'Blue'], ['preset:indigo', 'LM', 'Indigo'], ['preset:teal', 'TK', 'Teal'], ['preset:emerald', 'EM', 'Emerald'],
+  ['preset:amber', 'AM', 'Amber'], ['preset:rose', 'RS', 'Rose'], ['preset:violet', 'VT', 'Violet'], ['preset:cyan', 'CN', 'Cyan'],
+  ['preset:orange', 'OG', 'Orange'], ['preset:slate', 'SL', 'Slate'], ['preset:navy', 'NV', 'Navy'], ['preset:coral', 'CR', 'Coral']
 ];
 const DIVISIONS = [
   'Engineering & IT', 'Product & UI/UX', 'Marketing & Komunikasi', 'Sales & Business Dev',
@@ -91,7 +93,8 @@ const av = (m, c = '') => {
   if (!m) return '';
   if (m.avatar?.startsWith('preset:')) {
     const p = AVATAR_PRESETS.find(x => x[0] === m.avatar);
-    return `<span class="av ${c} av-preset" title="${esc(m.name)}">${p ? p[1] : '👤'}</span>`;
+    const label = p ? p[1] : esc(ini(m.name));
+    return `<span class="av ${c} av-preset" title="${esc(m.name)}">${label}</span>`;
   }
   if (m.avatar) {
     return `<span class="av ${c} av-img" title="${esc(m.name)}"><img src="${m.avatar}" alt="${esc(m.name)}"></span>`;
@@ -116,6 +119,67 @@ const hasQ = s => !Q || s.toLowerCase().includes(Q);
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; $('#toasts').appendChild(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 2800);
+}
+
+function playChime() {
+  if (localStorage.getItem('luki_sound_disabled') === '1') return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(523.25, now);
+    osc1.frequency.exponentialRampToValueAtTime(659.25, now + 0.12);
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(659.25, now + 0.08);
+    osc2.frequency.exponentialRampToValueAtTime(1046.5, now + 0.22);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now + 0.08);
+    osc1.stop(now + 0.25);
+    osc2.stop(now + 0.35);
+  } catch (e) {
+    /* blocked by autoplay or not supported */
+  }
+}
+
+async function uploadFileBlob(file) {
+  if (!file) return null;
+  if (file.size > 10 * 1024 * 1024) throw new Error('Ukuran file maksimal 10MB');
+  const reader = new FileReader();
+  const data = await new Promise((res, rej) => {
+    reader.onload = () => res(reader.result);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+  return await api('POST', '/api/upload', { data, name: file.name });
+}
+
+function formatMsgBody(text) {
+  if (!text) return '';
+  const escaped = esc(text);
+  return escaped.replace(/(\/uploads\/[a-zA-Z0-9_\-\.]+)/g, (match, path) => {
+    const ext = path.split('.').pop().toLowerCase();
+    const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+    if (isImg) {
+      return `<br><a href="${path}" target="_blank" rel="noopener"><img src="${path}" alt="Attachment" style="max-width:240px;max-height:180px;border-radius:8px;border:2px solid #0f172a;display:block;margin-top:6px" /></a>`;
+    }
+    const cleanName = path.split('/').pop().replace(/^\d+-[a-f0-9]+-/, '');
+    return `<br><a href="${path}" target="_blank" rel="noopener" class="pill" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;background:#f1f5f9;border:1.5px solid #0f172a;text-decoration:none;font-weight:600;font-size:12px;color:var(--txt)">${ic('file')} ${esc(cleanName)} ${ic('download')}</a>`;
+  });
 }
 let lastFocus = null;
 function layer(kind, html) {
@@ -191,8 +255,8 @@ function vDash() {
   const row = p => {
     const team = S.teams?.find(t => t.id === p.teamId);
     const scopeBadge = team 
-      ? `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:var(--ac-soft);color:var(--txt);border:1px solid #0f172a">👥 ${esc(team.name)}</span>` 
-      : `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:#f1f5f9;color:#64748b;border:1px dashed #94a3b8">🔒 Pribadi</span>`;
+      ? `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:var(--ac-soft);color:var(--txt);border:1px solid #0f172a">${esc(team.name)}</span>` 
+      : `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:#f1f5f9;color:#64748b;border:1px dashed #94a3b8">Pribadi</span>`;
     return `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(p.name)}</b>${scopeBadge}</div><small>Due date: ${short(p.due)}</small></div><button class="ibtn sm" data-act="project-chat" data-id="${p.id}" title="Diskusi / Obrolan Project">${ic('chat')}</button>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me || S.me.admin ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button><button class="ibtn sm" data-act="edit-proj" data-id="${p.id}" title="Edit project">${ic('edit')}</button><button class="ibtn sm" data-act="del-proj" data-id="${p.id}" title="Hapus project" style="color:var(--bad)">${ic('trash')}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
   };
   const opts = P.filter(p => p.status !== 'ended').map(p => `<option value="${p.id}" ${TT.pid === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
@@ -232,7 +296,7 @@ function vTeam() {
   const isLead = myRoleInTeam === 'Ketua Tim';
 
   const teamOpts = teams.map(t => `<option value="${t.id}" ${t.id === curTeam.id ? 'selected' : ''}>${esc(t.name)} (${esc(t.myRole || 'Member')})</option>`).join('');
-  const logoP = curTeam.logo?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === curTeam.logo)?.[1] || '👥') : (curTeam.logo ? `<img src="${curTeam.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : '👥');
+  const logoP = curTeam.logo?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === curTeam.logo)?.[1] || 'TM') : (curTeam.logo ? `<img src="${curTeam.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : (curTeam.name ? ini(curTeam.name) : 'TM'));
 
   if (!teamMembersCache[curTeam.id]) {
     api('GET', `/api/teams/${curTeam.id}/members`).then(list => {
@@ -248,15 +312,14 @@ function vTeam() {
     const wl = Math.min(95, o * 20), un = S.unread[m.id] || 0;
     const memberRole = m.teamRole || m.role || 'Member';
     const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[memberRole] || 'role-member';
-    const roleIcon = { 'Ketua Tim': '👑', 'Project Manager': '💼', 'Member': '👤', 'Viewer': '👁️' }[memberRole] || '👤';
-    const bday = m.birthDate ? `<span class="bday-pill" title="Ulang tahun: ${m.birthDate}">🎂 ${m.birthDate.slice(5)}</span>` : '';
+    const bday = m.birthDate ? `<span class="bday-pill" title="Ulang tahun: ${m.birthDate}">Lahir: ${m.birthDate.slice(5)}</span>` : '';
 
     return `<div class="card mcard" style="--i:${i}">
       <span class="avw">${av(m, 'lg')}<i class="st ${m.on ? 'on' : ''}" title="${m.on ? 'Online' : 'Offline'}"></i></span>
       <h4 style="font-size:15px;font-weight:700;margin:6px 0 2px">${esc(m.name)}${m.id === me ? ' <small class="mut">(kamu)</small>' : ''}</h4>
       <small class="mut" style="font-size:12px">@${esc(m.username || 'user' + m.id)}</small>
       <div class="mcard-badges">
-        <span class="role-badge ${roleCls}">${roleIcon} ${esc(memberRole)}</span>
+        <span class="role-badge ${roleCls}">${esc(memberRole)}</span>
         <span class="div-badge">${esc(m.div)}</span>
         ${bday}
       </div>
@@ -273,7 +336,7 @@ function vTeam() {
   return head('Team', 'Kelola multi-tim, anggota, peran spesifik tiap tim, dan status online.',
     `<div class="fa" style="margin:0">
       <button class="btn" data-act="team-chat" data-id="${curTeam.id}">${ic('chat')} Diskusi Tim</button>
-      <button class="btn" data-act="join-team-modal">🔑 Gabung Tim</button>
+      <button class="btn" data-act="join-team-modal">Gabung Tim</button>
       <button class="btn" data-act="new-team">${ic('plus')} Buat Tim Baru</button>
       <button class="btn primary" data-act="invite-team" data-team="${curTeam.id}">${ic('mail')} Undang ke Tim</button>
     </div>`) +
@@ -283,10 +346,10 @@ function vTeam() {
         <div class="team-hero-t">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <h2>${esc(curTeam.name)}</h2>
-            <span class="role-badge role-lead">👑 Peranmu: ${esc(myRoleInTeam)}</span>
-            <span class="role-badge role-count">👥 ${curTeam.memberCount || curMembers.length} Anggota</span>
+            <span class="role-badge role-lead">Peranmu: ${esc(myRoleInTeam)}</span>
+            <span class="role-badge role-count">${curTeam.memberCount || curMembers.length} Anggota</span>
             <span class="team-code-pill" data-act="copy-team-code" data-code="${esc(curTeam.code || '')}" title="Klik untuk menyalin kode unik tim">
-              🔑 Kode: <b>${esc(curTeam.code || '—')}</b> <span class="ic">${ic('copy')}</span>
+              Kode: <b>${esc(curTeam.code || '—')}</b> <span class="ic">${ic('copy')}</span>
             </span>
           </div>
           <p>${esc(curTeam.description || 'Ruang kerja kolaborasi tim.')}</p>
@@ -328,7 +391,7 @@ function vProf() {
   const isCustomDiv = m.div && !DIVISIONS.includes(m.div);
   const divOpts = DIVISIONS.map(d => `<option value="${d}" ${d === m.div ? 'selected' : ''}>${d}</option>`).join('') +
     `<option value="_custom" ${isCustomDiv ? 'selected' : ''}>Lainnya (Isi sendiri)...</option>`;
-  const curAv = m.avatar?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === m.avatar)?.[1] || '👤') : m.avatar ? `<img src="${m.avatar}">` : ini(m.name);
+  const curAv = m.avatar?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === m.avatar)?.[1] || ini(m.name)) : m.avatar ? `<img src="${m.avatar}">` : ini(m.name);
   const curAvCls = m.avatar?.startsWith('preset:') ? 'av-preset' : m.avatar ? 'av-img' : '';
   const avPresetsHtml = AVATAR_PRESETS.map(([id, emoji, label]) => `<button type="button" class="av-pbtn ${m.avatar === id ? 'on' : ''}" data-act="pick-av" data-id="${id}" title="${label}">${emoji}</button>`).join('');
   const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[m.teamRole] || 'role-member';
@@ -342,10 +405,10 @@ function vProf() {
         <h2>${esc(m.name)}</h2>
         <div class="prof-meta">
           <span style="font-weight:700;color:var(--txt)">@${esc(m.username || 'user' + m.id)}</span> · 
-          <span class="role-badge ${roleCls}">👑 ${esc(m.teamRole || 'Member')}</span> · 
+          <span class="role-badge ${roleCls}">${esc(m.teamRole || 'Member')}</span> · 
           <span class="div-badge">${esc(m.div)}</span>
         </div>
-        <p class="mut" style="font-size:12px;margin:4px 0 0">${esc(m.email)} · <span style="color:#15803d;font-weight:600">✓ Akun Terverifikasi</span></p>
+        <p class="mut" style="font-size:12px;margin:4px 0 0">${esc(m.email)} · <span style="color:#15803d;font-weight:600">${ic('check')}Akun Terverifikasi</span></p>
       </div>
     </div>
     <div class="prof-grid">
@@ -387,7 +450,7 @@ function vProf() {
             ${field('Tanggal Lahir', `<input class="in" type="date" name="birthDate" value="${esc(m.birthDate || '')}">`)}
           </div>
           <div class="tg" style="margin:8px 0 16px">
-            <div><b>Bagikan tanggal lahir ke tim</b><small>Anggota tim lain akan menerima notifikasi ucapan selamat saat hari ulang tahunmu tiba 🎉</small></div>
+            <div><b>Bagikan tanggal lahir ke tim</b><small>Anggota tim lain akan menerima notifikasi ucapan selamat saat hari ulang tahunmu tiba.</small></div>
             <input type="checkbox" name="shareBirthday" class="sw2-chk" ${m.shareBirthday ? 'checked' : ''} style="width:20px;height:20px">
           </div>
           ${field('Bio / Catatan', `<textarea class="in" name="bio" maxlength="200" placeholder="Ceritakan sedikit tentang dirimu...">${esc(m.bio)}</textarea>`, 1)}
@@ -457,7 +520,7 @@ function vSet() {
         el.innerHTML = list.map(s => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border:2px solid #0f172a;border-radius:12px;margin-bottom:8px">
             <div>
-              <b style="font-size:13px">${s.isCurrent ? '📱 Sesi Perangkat Ini (Saat Ini)' : '💻 Sesi Perangkat Lain'}</b>
+              <b style="font-size:13px">${s.isCurrent ? 'Sesi Perangkat Ini (Saat Ini)' : 'Sesi Perangkat Lain'}</b>
               <small class="mut" style="display:block;margin-top:2px;font-size:11.5px">Kedaluwarsa: ${new Date(s.expiresAt).toLocaleDateString('id-ID')}</small>
             </div>
             ${s.isCurrent ? '<span class="pill s-ended">Aktif Sekarang</span>' : '<span class="pill" style="background:#f1f5f9;border:1px solid #cbd5e1">Tersimpan</span>'}
@@ -475,10 +538,13 @@ function vSet() {
       </div>`;
   } else if (ST === 'notif') {
     const n = m.notif, rows = [['assign', 'Task assignments', 'Saat kamu ditugaskan ke task baru'], ['due', 'Deadline reminders', 'Pengingat H-7, H-3, H-2 dan H-1 untuk task dan project'], ['chat', 'Chat messages', 'Teruskan pesan baru ke Telegram saat kamu offline'], ['report', 'Project reports', 'Laporan PDF saat project selesai'], ['personal', 'Pengingat pribadi', 'Catatan, tugas pribadi, tagihan, wishlist, dan travel']];
+    const soundOn = localStorage.getItem('luki_sound_disabled') !== '1';
     const tgc = !S.tg.enabled ? `<p class="mut" style="font-size:12px">Bot Telegram belum dikonfigurasi di server. Isi <code>TELEGRAM_BOT_TOKEN</code> di file <code>.env</code> lalu restart server.</p>`
       : m.tg ? `<div class="tg-st"><span class="pill s-ended">Connected</span><div class="fa" style="margin:0"><button class="btn sm" data-act="tg-test">Send test</button><button class="btn sm danger" data-act="tg-unlink">Disconnect</button></div></div>`
       : `<div class="tg-st"><span class="pill s-pending">Not connected</span><button class="btn sm primary" data-act="tg-link">${ic('send')}Connect Telegram</button></div>`;
-    p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
+    p = `<h2>Notifications</h2><p>Pilih kabar apa yang ingin kamu terima.</p>
+      <div class="tg"><div><b>Suara Notifikasi (Audio Chime)</b><small>Mainkan nada lembut saat pesan obrolan atau notifikasi baru masuk</small></div><button class="sw2" role="switch" aria-checked="${soundOn}" aria-label="Suara Notifikasi" data-act="tog-sound"></button></div>
+      ${rows.map(([k, t, d]) => `<div class="tg"><div><b>${t}</b><small>${d}</small></div><button class="sw2" role="switch" aria-checked="${n[k] !== false}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`).join('')}<p class="lab2">Telegram</p><div class="tgcard"><p style="font-size:12.5px;margin-bottom:10px">Hubungkan akunmu ke bot Telegram untuk menerima notifikasi deadline, penugasan, dan laporan project langsung di ponsel.</p>${tgc}</div>`;
   } else if (ST === 'look') {
     const groups = [
       {
@@ -591,7 +657,7 @@ function post() {
   const a = $('#meAv');
   if (S.me.avatar?.startsWith('preset:')) {
     const p = AVATAR_PRESETS.find(x => x[0] === S.me.avatar);
-    a.className = 'av av-preset'; a.innerHTML = p ? p[1] : '👤'; a.style.removeProperty('--h');
+    a.className = 'av av-preset'; a.innerHTML = p ? p[1] : esc(ini(S.me.name)); a.style.removeProperty('--h');
   } else if (S.me.avatar) {
     a.className = 'av av-img'; a.innerHTML = `<img src="${S.me.avatar}">`; a.style.removeProperty('--h');
   } else {
@@ -624,7 +690,7 @@ async function promptJoinCode(code) {
       return;
     }
     layer(`${modalHead('Undangan Bergabung Tim')}<div class="f" style="text-align:center;padding:12px 0">
-      <div style="font-size:42px;margin-bottom:8px">${info.logo || '👥'}</div>
+      <div style="font-size:32px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-bottom:8px">${esc(info.logo || (info.name ? ini(info.name) : 'TM'))}</div>
       <h3 style="font-size:18px;margin-bottom:4px;font-family:'Patrick Hand',sans-serif">${esc(info.name)}</h3>
       <p class="mut" style="font-size:13px;margin-bottom:12px">${esc(info.description || 'Tidak ada deskripsi.')}</p>
       <div style="display:inline-block;padding:4px 12px;background:var(--ac-soft);border:2px solid #0f172a;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:16px">
@@ -728,7 +794,7 @@ $('#fForgot')?.addEventListener('submit', async e => {
     if (msgEl) {
       msgEl.className = 'vmsg error';
       msgEl.hidden = false;
-      msgEl.innerHTML = '⚠️ Masukkan alamat email yang valid.';
+      msgEl.innerHTML = 'Masukkan alamat email yang valid.';
     }
     return;
   }
@@ -740,7 +806,7 @@ $('#fForgot')?.addEventListener('submit', async e => {
     if (msgEl) {
       msgEl.className = 'vmsg success';
       msgEl.hidden = false;
-      msgEl.innerHTML = `✅ ${esc(res.message)}`;
+      msgEl.innerHTML = esc(res.message);
     }
   } catch (err) {
     if (msgEl) {
@@ -748,9 +814,9 @@ $('#fForgot')?.addEventListener('submit', async e => {
       msgEl.hidden = false;
       const isUnregistered = err.message && err.message.toLowerCase().includes('belum terdaftar');
       if (isUnregistered) {
-        msgEl.innerHTML = `⚠️ <b>Email belum terdaftar.</b> Akun dengan email <i>${esc(email)}</i> tidak ditemukan.<br><button type="button" class="btn sm primary" data-act="go-reg" style="margin-top:10px">Daftar Akun Baru Sekarang</button>`;
+        msgEl.innerHTML = `<b>Email belum terdaftar.</b> Akun dengan email <i>${esc(email)}</i> tidak ditemukan.<br><button type="button" class="btn sm primary" data-act="go-reg" style="margin-top:10px">Daftar Akun Baru Sekarang</button>`;
       } else {
-        msgEl.innerHTML = `⚠️ ${esc(err.message)}`;
+        msgEl.innerHTML = esc(err.message);
       }
     }
     toast(err.message);
@@ -765,11 +831,11 @@ $('#fReset')?.addEventListener('submit', async e => {
   const conf = $('#resetPwConf')?.value || '';
   const msgEl = $('#resetMsg');
   if (pw.length < 8) {
-    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = '⚠️ Kata sandi baru minimal 8 karakter'; }
+    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = 'Kata sandi baru minimal 8 karakter'; }
     return;
   }
   if (pw !== conf) {
-    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = '⚠️ Konfirmasi kata sandi tidak cocok'; }
+    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = 'Konfirmasi kata sandi tidak cocok'; }
     return;
   }
   const btn = $('#fReset .primary');
@@ -781,7 +847,7 @@ $('#fReset')?.addEventListener('submit', async e => {
     history.replaceState(null, '', u.pathname + u.hash);
     setTab('login');
   } catch (err) {
-    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = `⚠️ ${esc(err.message)}`; }
+    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = esc(err.message); }
     toast(err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Simpan Sandi Baru'; }
@@ -842,14 +908,18 @@ function connect() {
     if (!S) return;
     if (d.type === 'data') refresh();
     else if (d.type === 'presence') { const m = mem(d.id); if (m) { m.on = d.on; if (cur === 'team' && !busy()) paint(false); } }
-    else if (d.type === 'notif') { toast(d.text); load().then(post).catch(() => {}); }
+    else if (d.type === 'notif') { playChime(); toast(d.text); load().then(post).catch(() => {}); }
     else if (d.type === 'tg') { load().then(() => { if ($('.ov.modal')) closeLayer(); if (cur === 'settings') paint(false); toast(d.linked ? 'Telegram terhubung' : 'Telegram terputus'); }); }
     else if (d.type === 'message') onMessage(d.message);
     else if (d.type === 'channel_message') {
+      if (d.message.from_id !== S.me.id) playChime();
       if (chat && chat.channel === d.channel) addMsg(d.message);
       else if (d.message.from_id !== S.me.id) toast(`[${d.channel.startsWith('team:') ? 'Tim' : 'Project'}] ${d.message.from_name}: ${d.message.body.slice(0, 50)}`);
     }
-    else if (d.type === 'task_comment') { if (activeDetailTaskId === d.taskId) refreshTaskDetail(d.taskId); }
+    else if (d.type === 'task_comment') {
+      if (d.userId !== S.me.id) playChime();
+      if (activeDetailTaskId === d.taskId) refreshTaskDetail(d.taskId);
+    }
     else if (d.type === 'logout') { showAuth(); toast('Sesi kamu diakhiri oleh admin'); }
     else if (d.type === 'personal') { READY.personal = false; if (cur === 'personal' && !busy()) paint(false); }
   };
@@ -858,6 +928,7 @@ function connect() {
 /* ---------- chat ---------- */
 function onMessage(m) {
   const mine = m.from_id === S.me.id, peer = mine ? m.to_id : m.from_id;
+  if (!mine) playChime();
   if (chat && chat.id === peer) { addMsg(m); if (!mine) api('GET', '/api/messages/' + peer).catch(() => {}); return; }
   if (mine) return;
   S.unread[peer] = (S.unread[peer] || 0) + 1; post();
@@ -868,7 +939,7 @@ function msgHtml(m, prev) {
   const mine = m.from_id === S.me.id, d = iso(new Date(m.created_at));
   const sep = !prev || iso(new Date(prev.created_at)) !== d ? `<div class="msep">${d === off(0) ? 'Today' : short(d)}</div>` : '';
   const senderInfo = !mine && (m.channel || m.from_name) ? `<small style="font-size:10.5px;font-weight:700;color:var(--ac);display:block;margin-bottom:2px">${esc(m.from_name || mem(m.from_id)?.name || 'Member')}</small>` : '';
-  return `${sep}<div class="msg ${mine ? 'me' : ''}" data-id="${m.id}">${senderInfo}<p>${esc(m.body)}</p><small>${hhmm(m.created_at)}</small></div>`;
+  return `${sep}<div class="msg ${mine ? 'me' : ''}" data-id="${m.id}">${senderInfo}<div class="msg-cnt">${formatMsgBody(m.body)}</div><small>${hhmm(m.created_at)}</small></div>`;
 }
 function addMsg(m) {
   if (!chat || (chat.channel ? chat.channel !== m.channel : (chat.id !== m.from_id && chat.id !== m.to_id))) return;
@@ -879,9 +950,23 @@ function addMsg(m) {
 }
 async function openChat(id) {
   const m = mem(id); if (!m) return;
-  const o = layer('drawer', `<div class="chat"><div class="chat-h">${av(m, 'lg')}<div><h3>${esc(m.name)}</h3><small class="mut"><i class="st-d ${m.on ? 'on' : ''}"></i>${m.on ? 'Online' : 'Offline'} · ${esc(m.role)}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan untuk ${esc(m.name.split(' ')[0])}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
+  const o = layer('drawer', `<div class="chat"><div class="chat-h">${av(m, 'lg')}<div><h3>${esc(m.name)}</h3><small class="mut"><i class="st-d ${m.on ? 'on' : ''}"></i>${m.on ? 'Online' : 'Offline'} · ${esc(m.role)}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><input type="file" id="chatFileInput" style="display:none"><button type="button" class="btn sm" id="btnChatAttach" title="Lampirkan berkas atau foto" aria-label="Lampirkan berkas" style="padding:10px 11px">${ic('attach')}</button><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan untuk ${esc(m.name.split(' ')[0])}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
   chat = { id, msgs: [] }; S.unread[id] = 0; post();
-  const box = $('#msgs', o), ta = $('textarea', o);
+  const box = $('#msgs', o), ta = $('textarea', o), fi = $('#chatFileInput', o), btnAtt = $('#btnChatAttach', o);
+  if (fi && btnAtt) {
+    btnAtt.onclick = () => fi.click();
+    fi.onchange = async () => {
+      const f = fi.files?.[0]; if (!f) return;
+      try {
+        btnAtt.disabled = true; toast('Mengunggah berkas…');
+        const res = await uploadFileBlob(f);
+        ta.value = (ta.value ? ta.value + '\n' : '') + res.url;
+        ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+        ta.focus(); toast('Berkas berhasil dilampirkan!');
+      } catch (err) { toast(err.message || 'Gagal mengunggah berkas'); }
+      finally { btnAtt.disabled = false; fi.value = ''; }
+    };
+  }
   try { chat.msgs = await api('GET', '/api/messages/' + id); } catch (e) { if (e.message !== 'auth') toast(e.message); return; }
   if (!chat || chat.id !== id) return;
   box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada pesan. Sapa dulu!</div>'; box.scrollTop = box.scrollHeight;
@@ -893,9 +978,23 @@ async function openChat(id) {
 }
 
 async function openChannelChat(channel, title, subtitle = '') {
-  const o = layer('drawer', `<div class="chat"><div class="chat-h"><div class="pico" style="width:36px;height:36px;border-radius:10px;font-size:18px;display:flex;align-items:center;justify-content:center;background:var(--ac-soft);border:2px solid #0f172a;font-weight:800;color:var(--ac)">#</div><div><h3>${esc(title)}</h3><small class="mut">${esc(subtitle || 'Obrolan Channel')}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan ke #${esc(title)}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
+  const o = layer('drawer', `<div class="chat"><div class="chat-h"><div class="pico" style="width:36px;height:36px;border-radius:10px;font-size:18px;display:flex;align-items:center;justify-content:center;background:var(--ac-soft);border:2px solid #0f172a;font-weight:800;color:var(--ac)">#</div><div><h3>${esc(title)}</h3><small class="mut">${esc(subtitle || 'Obrolan Channel')}</small></div><button class="x" data-act="close" aria-label="Tutup chat">${ic('x')}</button></div><div class="msgs" id="msgs"><div class="empty">Memuat…</div></div><form class="chat-f" id="cf" autocomplete="off"><input type="file" id="chatFileInput" style="display:none"><button type="button" class="btn sm" id="btnChatAttach" title="Lampirkan berkas atau foto" aria-label="Lampirkan berkas" style="padding:10px 11px">${ic('attach')}</button><textarea class="in" rows="1" maxlength="2000" placeholder="Tulis pesan ke #${esc(title)}…" aria-label="Pesan"></textarea><button class="btn primary" aria-label="Kirim">${ic('send')}</button></form></div>`);
   chat = { channel, msgs: [] };
-  const box = $('#msgs', o), ta = $('textarea', o);
+  const box = $('#msgs', o), ta = $('textarea', o), fi = $('#chatFileInput', o), btnAtt = $('#btnChatAttach', o);
+  if (fi && btnAtt) {
+    btnAtt.onclick = () => fi.click();
+    fi.onchange = async () => {
+      const f = fi.files?.[0]; if (!f) return;
+      try {
+        btnAtt.disabled = true; toast('Mengunggah berkas…');
+        const res = await uploadFileBlob(f);
+        ta.value = (ta.value ? ta.value + '\n' : '') + res.url;
+        ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+        ta.focus(); toast('Berkas berhasil dilampirkan!');
+      } catch (err) { toast(err.message || 'Gagal mengunggah berkas'); }
+      finally { btnAtt.disabled = false; fi.value = ''; }
+    };
+  }
   try { chat.msgs = await api('GET', '/api/messages/channel/' + encodeURIComponent(channel)); } catch (e) { if (e.message !== 'auth') toast(e.message); return; }
   if (!chat || chat.channel !== channel) return;
   box.innerHTML = chat.msgs.map((x, i) => msgHtml(x, chat.msgs[i - 1])).join('') || '<div class="empty">Belum ada obrolan di channel ini. Mulai diskusi!</div>'; box.scrollTop = box.scrollHeight;
@@ -918,7 +1017,7 @@ function moveTask(id, stage) {
 }
 const projOpts = sel => '<option value="">No project</option>' + S.projects.filter(p => p.status !== 'ended').map(p => {
   const team = S.teams?.find(t => t.id === p.teamId);
-  const badge = team ? ` [👥 ${team.name}]` : ' [🔒 Pribadi]';
+  const badge = team ? ` [Tim: ${team.name}]` : ' [Pribadi]';
   return `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}${badge}</option>`;
 }).join('');
 const memberChecks = (sel = []) => `<div class="chips">${S.members.map(m => `<label class="chk"><input type="checkbox" name="who" value="${m.id}" ${sel.includes(m.id) ? 'checked' : ''}><span>${av(m)}${esc(m.name.split(' ')[0])}</span></label>`).join('')}</div>`;
@@ -949,14 +1048,14 @@ async function refreshTaskDetail(taskId) {
           <span class="tag ${task.tag}">${task.tag}</span>
           <span class="pr ${task.prio}">${ic('flag')}${task.prio}</span>
           <span class="pill" style="font-size:11px;font-weight:700">${STAGES.find(s => s[0] === task.stage)?.[1] || task.stage}</span>
-          ${task.projectName ? `<span class="pj" style="font-size:11px">📁 ${esc(task.projectName)}</span>` : ''}
+          ${task.projectName ? `<span class="pj" style="font-size:11px">${ic('file')}${esc(task.projectName)}</span>` : ''}
         </div>
         <button class="x" data-act="close" aria-label="Tutup detail">${ic('x')}</button>
       </div>
       <div class="td-body" style="padding:16px 20px;overflow-y:auto;flex:1">
         <h2 style="font-size:20px;margin:0 0 8px;line-height:1.3">${esc(task.title)}</h2>
         <div style="display:flex;gap:12px;font-size:12.5px;color:var(--mut);margin-bottom:16px;flex-wrap:wrap">
-          <span>📅 Jatuh tempo: <b style="color:var(--txt)">${short(task.due)}</b> (${dueLab(task)})</span>
+          <span>${ic('clock')}Jatuh tempo: <b style="color:var(--txt)">${short(task.due)}</b> (${dueLab(task)})</span>
         </div>
         <div class="td-sec">
           <label class="lab">Anggota Bertugas</label>
@@ -1009,21 +1108,37 @@ async function refreshTaskDetail(taskId) {
                       <small class="mut">@${esc(c.userUsername || 'user' + c.userId)} · ${ago(c.createdAt)}</small>
                       ${isMine ? `<button type="button" class="x sm" data-act="td-comm-del" data-id="${c.id}" data-tid="${task.id}" title="Hapus komentar" style="margin-left:auto">${ic('trash')}</button>` : ''}
                     </div>
-                    <p class="td-comm-txt">${esc(c.content)}</p>
+                    <div class="td-comm-txt">${formatMsgBody(c.content)}</div>
                   </div>
                 </div>
               `;
             }).join('') || '<p class="mut" style="font-size:12px;margin:8px 0">Belum ada diskusi untuk task ini. Mulai percakapan di bawah!</p>'}
           </div>
           <form id="fTdAddComm" data-id="${task.id}" style="margin-top:14px">
+            <input type="file" id="commFileInput" style="display:none">
             <textarea class="in sm" name="content" required maxlength="1000" rows="2" placeholder="Tulis komentar atau progress task..."></textarea>
-            <div style="display:flex;justify-content:flex-end;margin-top:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+              <button type="button" class="btn sm" id="btnCommAttach" title="Lampirkan berkas atau foto" style="padding:4px 8px;font-size:11.5px">${ic('attach')} Lampiran</button>
               <button class="btn sm primary">${ic('send')} Kirim</button>
             </div>
           </form>
         </div>
       </div>
     `;
+    const fi = $('#commFileInput', wrap), btnAtt = $('#btnCommAttach', wrap), commTa = $('textarea[name="content"]', wrap);
+    if (fi && btnAtt && commTa) {
+      btnAtt.onclick = () => fi.click();
+      fi.onchange = async () => {
+        const f = fi.files?.[0]; if (!f) return;
+        try {
+          btnAtt.disabled = true; toast('Mengunggah berkas…');
+          const res = await uploadFileBlob(f);
+          commTa.value = (commTa.value ? commTa.value + '\n' : '') + res.url;
+          commTa.focus(); toast('Berkas berhasil dilampirkan!');
+        } catch (err) { toast(err.message || 'Gagal mengunggah berkas'); }
+        finally { btnAtt.disabled = false; fi.value = ''; }
+      };
+    }
   } catch (e) {
     wrap.innerHTML = `<div class="empty" style="color:var(--bad)">Gagal memuat task: ${esc(e.message)}</div>`;
   }
@@ -1065,8 +1180,8 @@ const ACT = {
   'add-project': () => {
     const curTeam = S.teams?.find(t => t.id === activeTeamId) || S.teams?.[0];
     const teamOpts = [
-      ...(S.teams || []).map(t => `<option value="${t.id}" ${curTeam && t.id === curTeam.id ? 'selected' : ''}>👥 Tim: ${esc(t.name)} (Sinkron ke seluruh anggota tim)</option>`),
-      `<option value="" ${!curTeam ? 'selected' : ''}>🔒 Proyek Sendiri / Personal (Hanya Saya)</option>`
+      ...(S.teams || []).map(t => `<option value="${t.id}" ${curTeam && t.id === curTeam.id ? 'selected' : ''}>Tim: ${esc(t.name)} (Sinkron ke seluruh anggota tim)</option>`),
+      `<option value="" ${!curTeam ? 'selected' : ''}>Proyek Sendiri / Personal (Hanya Saya)</option>`
     ].join('');
 
     form(`${modalHead('Project Baru')}<form class="f">
@@ -1134,8 +1249,8 @@ const ACT = {
   'edit-proj': b => {
     const p = S.projects.find(x => x.id === +b.dataset.id); if (!p) return;
     const teamOpts = [
-      ...(S.teams || []).map(t => `<option value="${t.id}" ${p.teamId === t.id ? 'selected' : ''}>👥 Tim: ${esc(t.name)}</option>`),
-      `<option value="" ${!p.teamId ? 'selected' : ''}>🔒 Proyek Sendiri (Hanya Saya)</option>`
+      ...(S.teams || []).map(t => `<option value="${t.id}" ${p.teamId === t.id ? 'selected' : ''}>Tim: ${esc(t.name)}</option>`),
+      `<option value="" ${!p.teamId ? 'selected' : ''}>Proyek Sendiri (Hanya Saya)</option>`
     ].join('');
 
     form(`${modalHead('Edit project')}<form class="f">
@@ -1201,10 +1316,10 @@ const ACT = {
     const m = mem(uid);
     if (!m) return;
     const roles = [
-      ['Ketua Tim', '👑 Ketua Tim — Akses penuh mengelola tim, anggota, dan role'],
-      ['Project Manager', '💼 Project Manager — Membuat & mengatur project dan task'],
-      ['Member', '👤 Member — Mengerjakan task, kalender, chat, dan analitik'],
-      ['Viewer', '👁️ Viewer — Akses hanya lihat (read-only)']
+      ['Ketua Tim', 'Ketua Tim — Akses penuh mengelola tim, anggota, dan role'],
+      ['Project Manager', 'Project Manager — Membuat & mengatur project dan task'],
+      ['Member', 'Member — Mengerjakan task, kalender, chat, dan analitik'],
+      ['Viewer', 'Viewer — Akses hanya lihat (read-only)']
     ];
     form(`${modalHead('Atur Role Tim: ' + esc(m.name))}<form class="f">
       <p class="mut" style="font-size:12.5px;margin-bottom:12px">Tetapkan role khusus untuk <b>${esc(m.name)}</b> di tim ini.</p>
@@ -1227,15 +1342,15 @@ const ACT = {
     });
   },
   'new-team': () => {
-    const presets = ['👥', '🚀', '⚡', '🎯', '💡', '🛡️', '🌐', '💼', '🔥', '🏆'];
+    const presets = ['TM', 'HQ', 'CR', 'DV', 'MK', 'OP', 'EN', 'PM', 'DS', 'QA'];
     form(`${modalHead('Buat Tim Baru')}<form class="f">
       <p class="mut" style="font-size:12.5px;margin-bottom:12px">Buat ruang kerja tim baru. Kamu akan otomatis menjadi <b>Ketua Tim</b> di tim ini.</p>
       ${field('Nama Tim', '<input class="in" name="name" required maxlength="60" placeholder="Contoh: Digital Marketing, DevOps Core">', 1)}
       <div class="field">
-        <label class="lab">Pilih Ikon / Logo Tim</label>
-        <input type="hidden" name="logo" id="newTeamLogoIn" value="👥">
+        <label class="lab">Pilih Monogram / Inisial Logo Tim</label>
+        <input type="hidden" name="logo" id="newTeamLogoIn" value="TM">
         <div class="team-logo-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-          ${presets.map(p => `<button type="button" class="av-pbtn ${p === '👥' ? 'on' : ''}" data-act="pick-tlogo" data-val="${p}">${p}</button>`).join('')}
+          ${presets.map(p => `<button type="button" class="av-pbtn ${p === 'TM' ? 'on' : ''}" data-act="pick-tlogo" data-val="${p}">${p}</button>`).join('')}
         </div>
       </div>
       ${field('Deskripsi Tim', '<textarea class="in" name="description" maxlength="200" rows="3" placeholder="Jelaskan fokus, objektif, atau divisi tim ini..."></textarea>', 1)}
@@ -1244,7 +1359,7 @@ const ACT = {
     async fd => {
       const name = (fd.get('name') || '').trim();
       if (!name) return toast('Nama tim tidak boleh kosong');
-      const logo = fd.get('logo') || '👥';
+      const logo = fd.get('logo') || 'TM';
       const description = (fd.get('description') || '').trim();
       try {
         const newT = await api('POST', '/api/teams', { name, logo, description });
@@ -1269,12 +1384,12 @@ const ACT = {
     const tid = +b.dataset.id;
     const t = (S.teams || []).find(x => x.id === tid);
     if (!t) return;
-    const presets = ['👥', '🚀', '⚡', '🎯', '💡', '🛡️', '🌐', '💼', '🔥', '🏆'];
-    const curLogo = t.logo || '👥';
+    const presets = ['TM', 'HQ', 'CR', 'DV', 'MK', 'OP', 'EN', 'PM', 'DS', 'QA'];
+    const curLogo = t.logo || 'TM';
     form(`${modalHead('Edit Informasi Tim')}<form class="f">
       ${field('Nama Tim', `<input class="in" name="name" required maxlength="60" value="${esc(t.name)}">`, 1)}
       <div class="field">
-        <label class="lab">Pilih Ikon / Logo Tim</label>
+        <label class="lab">Pilih Monogram / Inisial Logo Tim</label>
         <input type="hidden" name="logo" id="newTeamLogoIn" value="${esc(curLogo)}">
         <div class="team-logo-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
           ${presets.map(p => `<button type="button" class="av-pbtn ${p === curLogo ? 'on' : ''}" data-act="pick-tlogo" data-val="${p}">${p}</button>`).join('')}
@@ -1470,8 +1585,8 @@ const ACT = {
   profile: b => {
     const m = mem(+b.dataset.id), ts = S.tasks.filter(t => t.who.includes(m.id)), o = ts.filter(t => t.stage !== 'done');
     const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[m.teamRole] || 'role-member';
-    const bdayInfo = m.birthDate ? `<small style="display:block;margin-top:4px">🎂 Lahir: ${esc(m.birthPlace ? m.birthPlace + ', ' : '')}${short(m.birthDate)}</small>` : '';
-    const addrInfo = m.address ? `<small style="display:block">📍 ${esc(m.address)}</small>` : '';
+    const bdayInfo = m.birthDate ? `<small style="display:block;margin-top:4px">Lahir: ${esc(m.birthPlace ? m.birthPlace + ', ' : '')}${short(m.birthDate)}</small>` : '';
+    const addrInfo = m.address ? `<small style="display:block">Domisili: ${esc(m.address)}</small>` : '';
     layer('drawer', `<div class="mh"><span></span><button class="x" data-act="close" aria-label="Tutup">${ic('x')}</button></div>
       <div class="dr-top">${av(m, 'lg')}
         <h3>${esc(m.name)}</h3>
@@ -1532,6 +1647,14 @@ const ACT = {
   st: b => { ST = b.dataset.k; paint(true); },
   discard: () => { paint(false); toast('Perubahan dibuang'); },
   tog: async b => { const k = b.dataset.k, v = S.me.notif[k] === false; b.setAttribute('aria-checked', v); try { await api('PATCH', '/api/me', { notif: { [k]: v } }); S.me.notif[k] = v; toast('Saved'); } catch (e) { b.setAttribute('aria-checked', !v); if (e.message !== 'auth') toast(e.message); } },
+  'tog-sound': b => {
+    const currentlyOn = localStorage.getItem('luki_sound_disabled') !== '1';
+    const nextOn = !currentlyOn;
+    localStorage.setItem('luki_sound_disabled', nextOn ? '0' : '1');
+    b.setAttribute('aria-checked', nextOn);
+    if (nextOn) playChime();
+    toast(nextOn ? 'Suara notifikasi diaktifkan' : 'Suara notifikasi dinonaktifkan');
+  },
   accent: b => {
     const k = b.dataset.k;
     document.documentElement.dataset.accent = k;
@@ -1917,3 +2040,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (q && AUTH_MSG[q]) toast(AUTH_MSG[q]);
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

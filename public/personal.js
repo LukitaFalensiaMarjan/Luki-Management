@@ -32,7 +32,8 @@ function donut(rows, total, label, sub) {
   let acc = 0;
   const arcs = total ? rows.map((r, i) => { const s = r.v / total * 100, a = `<circle cx="50" cy="50" r="38" fill="none" stroke="${DCOL[i % DCOL.length]}" stroke-width="13" pathLength="100" stroke-dasharray="${Math.max(.5, s - 1)} ${101 - s}" stroke-dashoffset="${-acc}"/>`; acc += s; return a; }).join('')
     : '<circle cx="50" cy="50" r="38" fill="none" stroke="#e9edf5" stroke-width="13"/>';
-  return `<div class="donut"><svg viewBox="0 0 100 100">${arcs}</svg><div class="c"><b>${label}</b><small>${sub}</small></div></div>`;
+  const fs = label.length > 13 ? '13px' : label.length > 10 ? '15px' : '18px';
+  return `<div class="donut"><svg viewBox="0 0 100 100">${arcs}</svg><div class="c"><b style="font-size:${fs}">${label}</b><small>${sub}</small></div></div>`;
 }
 const stat = (t, v, s, on, tab, cls = '') => `<div class="card stat ${on ? 'on' : ''}" ${tab ? `data-act="pt" data-k="${tab}" role="button" tabindex="0"` : ''}>${tab ? `<span class="go">${ic('arrow')}</span>` : ''}<h4>${t}</h4><div class="n sm ${cls}">${v}</div><small>${s}</small></div>`;
 
@@ -65,11 +66,24 @@ function pFinance() {
   const allTx = PK('tx');
   const calcW = w => allTx.filter(t => (t.wallet || 'cash') === w).reduce((a, t) => a + (t.status === 'income' ? t.amount : -t.amount), 0);
   const wCash = calcW('cash'), wBank = calcW('bank'), wEwallet = calcW('ewallet');
-  const wLabels = { cash: '💵 Kas', bank: '🏦 Bank', ewallet: '📱 E-Wallet' };
+  const wLabels = { cash: 'Kas Tunai', bank: 'Rekening Bank', ewallet: 'E-Wallet' };
 
   const list = [...new Set(tx.map(t => t.date))].map(d => {
     const r = tx.filter(t => t.date === d), net = r.reduce((a, t) => a + (t.status === 'income' ? t.amount : -t.amount), 0);
-    return `<div class="txd"><p class="txh"><span>${DOW[parse(d).getDay()].slice(0, 3)}, ${short(d)}</span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${idr(net)}</b></p>${r.map(t => `<button class="txr" data-act="p-edit" data-k="tx" data-id="${t.id}"><span class="txi ${t.status}">${esc((t.category || '?')[0])}</span><span class="ut"><b>${esc(t.title)}</b><small><span class="pill" style="font-size:10px;padding:1px 5px;background:#f1f5f9;border:1px solid #0f172a">${wLabels[t.wallet] || '💵 Kas'}</span> ${t.recurring ? `<span class="pill" style="font-size:10px;padding:1px 5px;background:#fef3c7;border:1px solid #0f172a">🔄 ${t.recurring}</span>` : ''} ${esc(t.category)} ${rchip(t)}</small></span><b class="amt ${t.status === 'income' ? 'pos' : 'neg'}">${t.status === 'income' ? '+' : '-'}${idr(t.amount)}</b></button>`).join('')}</div>`;
+    return `<div class="txd"><p class="txh"><span>${DOW[parse(d).getDay()].slice(0, 3)}, ${short(d)}</span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${idr(net)}</b></p>${r.map(t => `
+      <button class="txr" data-act="p-edit" data-k="tx" data-id="${t.id}">
+        <span class="txi ${t.status}">${esc((t.category || '?')[0])}</span>
+        <div class="tx-info">
+          <div class="tx-title">${esc(t.title)}</div>
+          <div class="tx-meta">
+            <span class="tx-tag wallet">${wLabels[t.wallet] || 'Kas'}</span>
+            ${t.recurring ? `<span class="tx-tag recur">${t.recurring}</span>` : ''}
+            <span class="tx-cat">${esc(t.category)}</span>
+            ${rchip(t)}
+          </div>
+        </div>
+        <b class="amt ${t.status === 'income' ? 'pos' : 'neg'}">${t.status === 'income' ? '+' : '-'}${idr(t.amount)}</b>
+      </button>`).join('')}</div>`;
   }).join('');
 
   return `<div class="mbar" style="flex-wrap:wrap;gap:8px">
@@ -80,7 +94,7 @@ function pFinance() {
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn sm" data-act="p-budget">${ic('wallet')}Atur budget</button>
-      <button class="btn sm" data-act="p-transfer">🔄 Transfer Dompet</button>
+      <button class="btn sm" data-act="p-transfer">${ic('refresh')}Transfer Dompet</button>
       <button class="btn sm" data-act="p-export-csv">${ic('download')}CSV</button>
       <button class="btn sm primary" data-act="p-export-pdf">${ic('file')}PDF</button>
     </div>
@@ -88,15 +102,15 @@ function pFinance() {
 
   <div class="grid g3 mb" style="margin-top:12px">
     <div class="card" style="padding:14px;background:#fefce8;border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a">
-      <div style="font-size:12px;font-weight:700;color:#854d0e">💵 Kas Tunai (Cash)</div>
+      <div style="font-size:12px;font-weight:700;color:#854d0e">Kas Tunai (Cash)</div>
       <div style="font-size:18px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-top:4px">${idr(wCash)}</div>
     </div>
     <div class="card" style="padding:14px;background:#eff6ff;border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a">
-      <div style="font-size:12px;font-weight:700;color:#1e40af">🏦 Rekening Bank</div>
+      <div style="font-size:12px;font-weight:700;color:#1e40af">Rekening Bank</div>
       <div style="font-size:18px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-top:4px">${idr(wBank)}</div>
     </div>
     <div class="card" style="padding:14px;background:#f0fdf4;border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a">
-      <div style="font-size:12px;font-weight:700;color:#166534">📱 E-Wallet</div>
+      <div style="font-size:12px;font-weight:700;color:#166534">E-Wallet</div>
       <div style="font-size:18px;font-weight:800;font-family:'Patrick Hand',sans-serif;margin-top:4px">${idr(wEwallet)}</div>
     </div>
   </div>
@@ -147,11 +161,11 @@ function pTrip() {
       ${t.amount != null ? `<p class="tb">Budget <b>${idr(t.amount)}</b></p>` : ''}
       ${td.note ? `<p class="wnote" style="font-size:12px;margin:6px 0">${esc(td.note)}</p>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-        ${pTotal ? `<span class="pill" style="font-size:11px;background:#fef3c7;border:1px solid #0f172a">🎒 Packing: ${pDone}/${pTotal}</span>` : ''}
-        ${itinCount ? `<span class="pill" style="font-size:11px;background:#e0f2fe;border:1px solid #0f172a">🗺️ Itinerary: ${itinCount} agenda</span>` : ''}
+        ${pTotal ? `<span class="pill" style="font-size:11px;background:#fef3c7;border:1px solid #0f172a">Packing: ${pDone}/${pTotal}</span>` : ''}
+        ${itinCount ? `<span class="pill" style="font-size:11px;background:#e0f2fe;border:1px solid #0f172a">Itinerary: ${itinCount} agenda</span>` : ''}
       </div>
       <div style="margin-top:10px;display:flex;gap:6px">
-        <button class="btn sm" data-act="p-trip-view" data-id="${t.id}">📋 Detail &amp; Checklist</button>
+        <button class="btn sm" data-act="p-trip-view" data-id="${t.id}">${ic('file')}Detail &amp; Checklist</button>
       </div>
     </div>`;
   }).join('')}</div>`
@@ -175,16 +189,16 @@ function pForm(k, it) {
         + txt('title', 'Keterangan', 120, it, 1, 'mis. Makan siang')
         + field('Kategori', `<select class="in" name="category" data-cat>${catOpts(st, it.category)}</select>`, 1)
         + field('Dompet / Sumber Dana', `<select class="in" name="wallet">
-            <option value="cash" ${(it.wallet || 'cash') === 'cash' ? 'selected' : ''}>💵 Kas Tunai (Cash)</option>
-            <option value="bank" ${it.wallet === 'bank' ? 'selected' : ''}>🏦 Rekening Bank</option>
-            <option value="ewallet" ${it.wallet === 'ewallet' ? 'selected' : ''}>📱 E-Wallet (GoPay/OVO/ShopeePay)</option>
+            <option value="cash" ${(it.wallet || 'cash') === 'cash' ? 'selected' : ''}>Kas Tunai (Cash)</option>
+            <option value="bank" ${it.wallet === 'bank' ? 'selected' : ''}>Rekening Bank</option>
+            <option value="ewallet" ${it.wallet === 'ewallet' ? 'selected' : ''}>E-Wallet (GoPay/OVO/ShopeePay)</option>
           </select>`, 1)
         + field('Transaksi Berulang (Rutin)', `<select class="in" name="recurring">
             <option value="" ${!it.recurring ? 'selected' : ''}>Bukan Rutin (Sekali Saja)</option>
-            <option value="daily" ${it.recurring === 'daily' ? 'selected' : ''}>🔄 Harian</option>
-            <option value="weekly" ${it.recurring === 'weekly' ? 'selected' : ''}>🔄 Mingguan</option>
-            <option value="monthly" ${it.recurring === 'monthly' ? 'selected' : ''}>🔄 Bulanan (Gaji, Wifi, Tagihan)</option>
-            <option value="yearly" ${it.recurring === 'yearly' ? 'selected' : ''}>🔄 Tahunan (Pajak, Asuransi)</option>
+            <option value="daily" ${it.recurring === 'daily' ? 'selected' : ''}>Harian</option>
+            <option value="weekly" ${it.recurring === 'weekly' ? 'selected' : ''}>Mingguan</option>
+            <option value="monthly" ${it.recurring === 'monthly' ? 'selected' : ''}>Bulanan (Gaji, Tagihan)</option>
+            <option value="yearly" ${it.recurring === 'yearly' ? 'selected' : ''}>Tahunan (Pajak, Asuransi)</option>
           </select>`, 1)
         + remindF(it);
     }
@@ -291,14 +305,14 @@ Object.assign(ACT, {
   'p-transfer': () => {
     form(`${modalHead('Transfer Antar Dompet')}<form class="f">
       ${field('Dompet Asal (Sumber Dana)', `<select class="in" name="fromWallet">
-        <option value="bank">🏦 Rekening Bank</option>
-        <option value="cash">💵 Kas Tunai</option>
-        <option value="ewallet">📱 E-Wallet</option>
+        <option value="bank">Rekening Bank</option>
+        <option value="cash">Kas Tunai</option>
+        <option value="ewallet">E-Wallet</option>
       </select>`, 1)}
       ${field('Dompet Tujuan', `<select class="in" name="toWallet">
-        <option value="ewallet">📱 E-Wallet</option>
-        <option value="cash">💵 Kas Tunai</option>
-        <option value="bank">🏦 Rekening Bank</option>
+        <option value="ewallet">E-Wallet</option>
+        <option value="cash">Kas Tunai</option>
+        <option value="bank">Rekening Bank</option>
       </select>`, 1)}
       ${money('Jumlah Transfer (Rp)', {}, 1)}
       ${field('Tanggal', `<input class="in" type="date" name="date" required value="${off(0)}">`)}
@@ -351,7 +365,7 @@ Object.assign(ACT, {
       <div style="padding:8px;background:var(--ac-soft);border:1px solid #0f172a;border-radius:10px;margin-bottom:6px">
         <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700">
           <span>${esc(dayLabel)}</span>
-          ${it.time ? `<span style="color:var(--ac)">⏰ ${esc(it.time)}</span>` : ''}
+          ${it.time ? `<span style="color:var(--ac)">${esc(it.time)}</span>` : ''}
         </div>
         <p style="font-size:13px;margin-top:3px;font-weight:600">${esc(title)}</p>
       </div>`;
@@ -359,15 +373,15 @@ Object.assign(ACT, {
 
     layer('modal', `${modalHead(esc(t.title) + ' · Rincian Travel')}<div class="f" style="max-height:75vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <span class="mut" style="font-size:12.5px">📅 ${short(t.date)} – ${short(t.date2)}</span>
+        <span class="mut" style="font-size:12.5px">${short(t.date)} – ${short(t.date2)}</span>
         ${t.amount != null ? `<span class="pill" style="background:#fef3c7;border:1px solid #0f172a">Budget: ${idr(t.amount)}</span>` : ''}
       </div>
       ${td.note ? `<p style="font-size:13px;line-height:1.5;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin-bottom:14px">${esc(td.note)}</p>` : ''}
       
-      <h4 style="font-size:14px;font-family:'Patrick Hand',sans-serif;margin-bottom:6px">🎒 Checklist Barang Bawaan (${packs.filter(x => x.done || x.packed).length}/${packs.length})</h4>
+      <h4 style="font-size:14px;font-family:'Patrick Hand',sans-serif;margin-bottom:6px">Checklist Barang Bawaan (${packs.filter(x => x.done || x.packed).length}/${packs.length})</h4>
       <div style="margin-bottom:16px">${packHtml}</div>
 
-      <h4 style="font-size:14px;font-family:'Patrick Hand',sans-serif;margin-bottom:6px">🗺️ Jadwal Harian (Daily Rundown)</h4>
+      <h4 style="font-size:14px;font-family:'Patrick Hand',sans-serif;margin-bottom:6px">Jadwal Harian (Daily Rundown)</h4>
       <div style="margin-bottom:16px">${itinHtml}</div>
 
       <div class="fa w">

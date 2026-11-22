@@ -1,7 +1,7 @@
 'use strict';
 const core = require('./core');
 const { all, one, run, tx, now, today, dayOf, addDays, hashPw, verifyPw, clients, online, pushUser, broadcast, notify, activity, genTeamCode } = core;
-const express = require('express'), crypto = require('crypto'), path = require('path');
+const express = require('express'), crypto = require('crypto'), path = require('path'), fs = require('fs');
 const { E, s, D, en, int, money, sha, cookies, startSession, limited, tries, EMAIL, PRIO, APP_URL, SECURE, COOKIE } = require('./http');
 const tg = require('./telegram'), reminders = require('./reminders'), mail = require('./mail'), { buildReport } = require('./report');
 const PORT = +process.env.PORT || 3000, HOST = process.env.HOST || '127.0.0.1';
@@ -18,7 +18,7 @@ app.use((req, res, next) => {
     'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'" });
   next();
 });
-app.use(express.json({ limit: '300kb' }));
+app.use(express.json({ limit: '15mb' }));
 // CSRF defence: state-changing calls must carry a custom header (cross-site forms cannot set it) on top of SameSite=Lax cookies.
 app.use('/api', (req, res, next) => { if (req.method !== 'GET' && req.get('x-luki') !== '1') return next(E(403, 'Permintaan ditolak')); next(); });
 app.use('/api', (req, res, next) => {
@@ -256,7 +256,7 @@ app.use('/api', auth);
 const taskOut = (t, who) => ({ id: t.id, projectId: t.project_id, title: t.title, description: t.description || '', tag: t.tag, prio: t.prio, stage: t.stage, due: t.due, prog: t.prog, who: who.get(t.id) || [], createdAt: t.created_at, completedAt: t.completed_at });
 app.get('/api/bootstrap', (req, res) => {
   const who = new Map(); for (const a of all('SELECT task_id,user_id FROM task_assignees')) (who.get(a.task_id) || who.set(a.task_id, []).get(a.task_id)).push(a.user_id);
-  const unread = {}; for (const r of all('SELECT from_id,COUNT(*) c FROM messages WHERE to_id=? AND read_at IS NULL GROUP BY from_id', req.user.id)) unread[r.from_id] = r.c;
+  const unread = {}; for (const r of all("SELECT from_id,COUNT(*) c FROM messages WHERE to_id=? AND read_at IS NULL AND (channel IS NULL OR channel='') GROUP BY from_id", req.user.id)) unread[r.from_id] = r.c;
   
   ensureUserTeam(req.user);
 
@@ -879,6 +879,33 @@ app.post('/api/messages', (req, res) => {
   res.status(201).json(m);
 });
 app.post('/api/notifications/read', (req, res) => { run('UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL', now(), req.user.id); res.json({ ok: true }); });
+
+/* ---------- file attachments upload ---------- */
+const UPLOADS_DIR = path.join(__dirname, '..', 'data', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '30d' }));
+
+app.post('/api/upload', (req, res) => {
+  const b = req.body || {};
+  const filename = s(b.filename || b.name || 'file', 120);
+  const dataUrl = b.data;
+  if (typeof dataUrl !== 'string' || !dataUrl.includes(',')) throw E(400, 'Format file tidak valid');
+
+  const [header, base64Data] = dataUrl.split(',');
+  const buf = Buffer.from(base64Data, 'base64');
+  if (buf.length > 10 * 1024 * 1024) throw E(400, 'Ukuran file maksimal 10MB');
+
+  const ext = (path.extname(filename).slice(1) || 'bin').toLowerCase();
+  const allowed = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip'];
+  if (!allowed.includes(ext)) throw E(400, `Format .${ext} tidak diizinkan. Format yang didukung: ${allowed.join(', ')}`);
+
+  const safeName = `up_${now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
+  const filePath = path.join(UPLOADS_DIR, safeName);
+  fs.writeFileSync(filePath, buf);
+
+  const fileUrl = `/uploads/${safeName}`;
+  res.json({ ok: true, url: fileUrl, name: filename, size: buf.length, ext });
+});
 
 /* ---------- sessions & account management ---------- */
 app.get('/api/me/sessions', (req, res) => {

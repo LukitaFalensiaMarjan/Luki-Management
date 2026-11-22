@@ -292,6 +292,50 @@ async function runTests() {
     assert(false, `Session management test error: ${err.message}`);
   }
 
+  // 6. File Upload & Serve Test (Option 2)
+  try {
+    const sampleContent = 'Hello LUKI attachment test file!';
+    const base64Data = 'data:text/plain;base64,' + Buffer.from(sampleContent).toString('base64');
+    let res = await request({
+      hostname: '127.0.0.1',
+      port: 3000,
+      path: '/api/upload',
+      method: 'POST',
+      headers: authHeaders
+    }, {
+      name: 'luki-notes.txt',
+      data: base64Data
+    });
+
+    assert(res.statusCode === 200, 'POST /api/upload returns 200');
+    const upData = res.json();
+    assert(upData && upData.ok && upData.url.startsWith('/uploads/'), 'Upload response returns valid /uploads/ URL');
+
+    // Fetch the uploaded file back
+    res = await request({
+      hostname: '127.0.0.1',
+      port: 3000,
+      path: upData.url,
+      method: 'GET'
+    });
+    assert(res.statusCode === 200, `GET ${upData.url} serves static uploaded file with 200`);
+    assert(res.text === sampleContent, 'Served file content matches uploaded bytes');
+  } catch (err) {
+    assert(false, `File upload test error: ${err.message}`);
+  }
+
+  // 7. Backup script verification (Option 1)
+  try {
+    const { execSync } = require('child_process');
+    const fs = require('fs');
+    const out = execSync('node --disable-warning=ExperimentalWarning scripts/backup.js', { encoding: 'utf8' });
+    assert(out.includes('[BACKUP SUCCESS]'), 'scripts/backup.js completes and outputs [BACKUP SUCCESS]');
+    const files = fs.readdirSync('data/backups');
+    assert(files.length > 0 && files.some(f => f.startsWith('luki-backup-')), 'Backup directory contains created SQLite snapshot');
+  } catch (err) {
+    assert(false, `Backup script test error: ${err.message}`);
+  }
+
   console.log(`\n=== FINAL RESULT: ${passed} PASSED, ${failed} FAILED ===`);
   process.exit(failed > 0 ? 1 : 0);
 }
