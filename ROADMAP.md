@@ -16,29 +16,30 @@ Dokumen ini merangkum seluruh daftar pekerjaan, perbaikan, dan fitur baru yang b
 ## Pilar 1: Konfigurasi Kredensial & Integrasi Layanan Eksternal
 
 > **Prioritas:** Mendesak (Prasyarat Operasional)  
-> **Status Saat Ini:** Kode backend sudah siap, namun variabel di file `.env` masih kosong sehingga fitur berjalan dalam mode lokal/terbatas.
+> **Status:** SELESAI (100% Terkonfigurasi dan Terverifikasi)
 
 ### Checklist Pekerjaan
-- [ ] **1.1 Konfigurasi Email SMTP (Nodemailer)**
+- [x] **1.1 Konfigurasi Email SMTP (Nodemailer)**
   - Masukkan kredensial SMTP di `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`).
-  - *Dampak:* Saat ini email verifikasi registrasi hanya dicetak di terminal server. Setelah diisi, tautan aktivasi akan terkirim langsung ke kotak masuk pengguna asli.
-- [ ] **1.2 Konfigurasi Google OAuth 2.0 (PKCE)**
-  - Buat project di Google Cloud Console -> Credentials -> OAuth 2.0 Client ID (Web Application).
-  - Daftarkan Authorized redirect URI: `http://localhost:3000/api/auth/google/callback` (dan domain produksi saat online).
+  - *Status:* Berhasil terhubung dan terverifikasi dengan server Google SMTP.
+- [x] **1.2 Konfigurasi Google OAuth 2.0 (PKCE)**
+  - Buat project di Google Cloud Console -> Google Auth Platform -> Web Application client.
+  - Daftarkan Authorized redirect URI: `http://localhost:3000/api/auth/google/callback`.
   - Masukkan `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET` ke `.env`.
-  - *Dampak:* Tombol "Lanjut dengan Google" di landing page akan otomatis muncul.
-- [ ] **1.3 Konfigurasi Bot Telegram**
-  - Buat bot baru di Telegram melalui `@BotFather` (perintah `/newbot`) dan ambil tokennya.
+  - *Status:* Client ID & Secret sudah terpasang dan aktif di server (`google: true`).
+- [x] **1.3 Konfigurasi Bot Telegram**
+  - Buat bot baru di Telegram melalui `@BotFather` (`@LukiManagementBot`) dan ambil tokennya.
   - Masukkan `TELEGRAM_BOT_TOKEN` dan tentukan `REMINDER_HOUR` di `.env`.
   - Daftarkan perintah bot via `@BotFather` (`/setcommands`): `deadline`, `catat`, `masuk`, `stop`.
-  - *Dampak:* Polling bot akan aktif, pengingat deadline otomatis terkirim, dan user dapat mencatat pengeluaran langsung dari chat.
-- [ ] **1.4 Penetapan Akses Admin Akun Utama**
-  - Tambahkan email pemilik akun di baris `.env`: `ADMIN_EMAILS=nanolukii17@gmail.com`.
-  - *Dampak:* Saat server menyala, akun tersebut otomatis mendapatkan peran Admin (`is_admin = 1`).
-- [ ] **1.5 Inisialisasi Version Control Git**
+  - *Status:* Bot `@LukiManagementBot` aktif dan polling `ok: true`.
+- [x] **1.4 Penetapan Akses Admin Akun Utama**
+  - Tambahkan email pemilik akun di baris `.env`: `ADMIN_EMAILS=nanolukii17@gmail.com,lukitafalensiamarjan@gmail.com`.
+  - *Status:* Akun `nanolukii17@gmail.com` telah otomatis mendapatkan hak akses Admin (`is_admin = 1`).
+- [x] **1.5 Inisialisasi Version Control Git**
   - Jalankan `git init` di root project.
   - Pastikan `.gitignore` tetap mengecualikan `node_modules/`, `data/`, `.env`, dan `*.log`.
-  - Buat commit awal (*initial commit*) dan hubungkan ke remote repository (GitHub / GitLab / Bitbucket).
+  - Buat commit awal (*initial commit*) dan siap dihubungkan ke remote repository GitHub.
+  - *Status:* Git repo lokal dan initial commit sudah selesai dibuat.
 
 **File Terkait:**
 * `.env`
