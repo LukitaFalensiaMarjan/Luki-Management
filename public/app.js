@@ -530,6 +530,9 @@ function setTab(t) {
   $('.a-tabs').dataset.t = t; $('#fLogin').hidden = t !== 'login'; $('#fReg').hidden = t !== 'register';
   $('#vPanel').hidden = true; $('#forgotPanel').hidden = true; $('#resetPanel').hidden = true; card().classList.remove('verifying');
   $$('.a-err').forEach(e => e.textContent = ''); $('#fLogin [data-resend]').hidden = true;
+  const fm = $('#forgotMsg'), rm = $('#resetMsg');
+  if (fm) { fm.hidden = true; fm.textContent = ''; }
+  if (rm) { rm.hidden = true; rm.textContent = ''; }
 }
 function showVerify(email, sent) {
   vMail = email; $('#vEmail').textContent = email; $('#vNote').hidden = sent !== false;
@@ -570,28 +573,43 @@ $('[data-act="forgot-link"]')?.addEventListener('click', e => {
   $('#fLogin').hidden = true; $('#fReg').hidden = true; $('#vPanel').hidden = true; $('#resetPanel').hidden = true;
   $('#forgotPanel').hidden = false;
   $('#forgotEmailIn').value = $('#fLogin [name=email]')?.value || '';
-  const errEl = $('#forgotErr'); if (errEl) errEl.textContent = '';
+  const msgEl = $('#forgotMsg'); if (msgEl) { msgEl.hidden = true; msgEl.textContent = ''; }
   $('#forgotEmailIn')?.focus();
 });
 $('#fForgot')?.addEventListener('submit', async e => {
   e.preventDefault();
   const email = ($('#forgotEmailIn')?.value || '').trim();
+  const msgEl = $('#forgotMsg');
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   if (!email || !EMAIL_RE.test(email)) {
-    const errEl = $('#forgotErr');
-    if (errEl) { errEl.style.color = 'var(--bad)'; errEl.textContent = 'Masukkan alamat email yang valid'; }
+    if (msgEl) {
+      msgEl.className = 'vmsg error';
+      msgEl.hidden = false;
+      msgEl.innerHTML = '⚠️ Masukkan alamat email yang valid.';
+    }
     return;
   }
   const btn = $('#fForgot .primary');
   if (btn) { btn.disabled = true; btn.textContent = 'Mengirim...'; }
   try {
     const res = await api('POST', '/api/auth/forgot-password', { email });
-    toast(res.message);
-    const errEl = $('#forgotErr');
-    if (errEl) { errEl.style.color = '#15803d'; errEl.textContent = res.message; }
+    toast('Tautan pemulihan terkirim!');
+    if (msgEl) {
+      msgEl.className = 'vmsg success';
+      msgEl.hidden = false;
+      msgEl.innerHTML = `✅ ${esc(res.message)}`;
+    }
   } catch (err) {
-    const errEl = $('#forgotErr');
-    if (errEl) { errEl.style.color = 'var(--bad)'; errEl.textContent = err.message; }
+    if (msgEl) {
+      msgEl.className = 'vmsg error';
+      msgEl.hidden = false;
+      const isUnregistered = err.message && err.message.toLowerCase().includes('belum terdaftar');
+      if (isUnregistered) {
+        msgEl.innerHTML = `⚠️ <b>Email belum terdaftar.</b> Akun dengan email <i>${esc(email)}</i> tidak ditemukan.<br><button type="button" class="btn sm primary" data-act="go-reg" style="margin-top:10px">Daftar Akun Baru Sekarang</button>`;
+      } else {
+        msgEl.innerHTML = `⚠️ ${esc(err.message)}`;
+      }
+    }
     toast(err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Kirim Tautan'; }
@@ -602,9 +620,15 @@ $('#fReset')?.addEventListener('submit', async e => {
   const tok = $('#resetTokenIn')?.value;
   const pw = $('#resetPwIn')?.value || '';
   const conf = $('#resetPwConf')?.value || '';
-  const errEl = $('#resetErr');
-  if (pw.length < 8) { if (errEl) errEl.textContent = 'Kata sandi baru minimal 8 karakter'; return; }
-  if (pw !== conf) { if (errEl) errEl.textContent = 'Konfirmasi kata sandi tidak cocok'; return; }
+  const msgEl = $('#resetMsg');
+  if (pw.length < 8) {
+    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = '⚠️ Kata sandi baru minimal 8 karakter'; }
+    return;
+  }
+  if (pw !== conf) {
+    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = '⚠️ Konfirmasi kata sandi tidak cocok'; }
+    return;
+  }
   const btn = $('#fReset .primary');
   if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan...'; }
   try {
@@ -614,7 +638,7 @@ $('#fReset')?.addEventListener('submit', async e => {
     history.replaceState(null, '', u.pathname + u.hash);
     setTab('login');
   } catch (err) {
-    if (errEl) errEl.textContent = err.message;
+    if (msgEl) { msgEl.className = 'vmsg error'; msgEl.hidden = false; msgEl.innerHTML = `⚠️ ${esc(err.message)}`; }
     toast(err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Simpan Sandi Baru'; }
@@ -1243,6 +1267,16 @@ const ACT = {
   avatar: () => { closePop(); location.hash = '#/profile'; },
   'go-pwd': () => { ST = 'security'; location.hash = '#/settings'; if (cur === 'settings') paint(false); },
   'go-look': () => { ST = 'look'; location.hash = '#/settings'; if (cur === 'settings') paint(false); },
+  'go-reg': () => {
+    card().classList.remove('verifying');
+    setTab('register');
+    const emailVal = ($('#forgotEmailIn')?.value || '').trim();
+    if (emailVal) {
+      const regEmailIn = $('#fReg input[name=email]');
+      if (regEmailIn) regEmailIn.value = emailVal;
+    }
+    setTimeout(() => $('#masuk')?.scrollIntoView({ behavior: 'smooth' }), 100);
+  },
   go: b => { closePop(); location.hash = '#/' + b.dataset.k; },
   help: () => layer('modal', `${modalHead('Help')}<div class="kb"><div><span>Cari</span><kbd>⌘/Ctrl + K</kbd></div><div><span>Tutup dialog</span><kbd>Esc</kbd></div><div><span>Pindah kartu tugas</span><span class="mut">Drag, atau menu ⋯</span></div><div><span>Chat dengan rekan</span><span class="mut">Team → Chat</span></div><div><span>Selesaikan project</span><span class="mut">Klik pill status → PDF dibuat</span></div><div><span>Notifikasi Telegram</span><span class="mut">Settings → Notifications</span></div></div><div class="fa"><button class="btn primary" data-act="close">Mengerti</button></div>`),
   logout: () => layer('modal', `${modalHead('Logout')}<p class="mut" style="font-size:13px">Keluar dari LUKI MANAGEMENT?</p><div class="fa"><button class="btn" data-act="close">Batal</button><button class="btn primary" data-act="do-logout">Logout</button></div>`),

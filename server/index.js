@@ -93,20 +93,24 @@ app.post('/api/auth/resend', async (req, res) => {
 });
 app.post('/api/auth/forgot-password', async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  if (limited('forgot' + req.ip, 5)) throw E(429, 'Terlalu banyak permintaan reset kata sandi, coba lagi dalam 10 menit');
+  if (limited('forgot' + req.ip, 10)) throw E(429, 'Terlalu banyak permintaan reset kata sandi, coba lagi dalam 10 menit');
   if (!EMAIL.test(email)) throw E(400, 'Format email tidak valid');
-  const u = one('SELECT id, name, email FROM users WHERE email=? AND disabled=0', email);
-  if (u) {
-    const tok = crypto.randomBytes(32).toString('base64url');
-    run('UPDATE users SET reset_hash=?, reset_exp=? WHERE id=?', sha(tok), now() + 3600000, u.id);
-    const link = `${APP_URL}/?resetToken=${tok}`;
-    try {
-      await mail.sendReset(u.email, u.name, link);
-    } catch (e) {
-      console.error('[mail:reset]', e.message);
-    }
+  const u = one('SELECT id, name, email, google_id, pass_hash FROM users WHERE email=? AND disabled=0', email);
+  if (!u) {
+    throw E(404, 'Email belum terdaftar di LUKI MANAGEMENT. Silakan daftar akun baru.');
   }
-  res.json({ ok: true, message: 'Jika email terdaftar, tautan pemulihan telah dikirim. Silakan periksa inbox atau spam kamu.' });
+  const tok = crypto.randomBytes(32).toString('base64url');
+  run('UPDATE users SET reset_hash=?, reset_exp=? WHERE id=?', sha(tok), now() + 3600000, u.id);
+  const link = `${APP_URL}/?resetToken=${tok}`;
+  try {
+    await mail.sendReset(u.email, u.name, link);
+  } catch (e) {
+    console.error('[mail:reset]', e.message);
+  }
+  const msg = (u.google_id && !u.pass_hash)
+    ? 'Tautan pemulihan telah dikirim ke email kamu! Karena akunmu terhubung dengan Google, kamu kini dapat membuat kata sandi mandiri agar bisa login via email.'
+    : 'Tautan pemulihan kata sandi telah dikirim ke email kamu! Silakan periksa inbox atau spam (berlaku 1 jam).';
+  res.json({ ok: true, message: msg, isGoogle: !!(u.google_id && !u.pass_hash) });
 });
 app.post('/api/auth/reset-password', async (req, res) => {
   const tok = String(req.body?.token || '').trim();

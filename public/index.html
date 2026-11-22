@@ -151,12 +151,12 @@
           <span class="v-ic" data-i="mail"></span>
           <h3>Lupa Kata Sandi?</h3>
           <p>Masukkan alamat email akun kamu. Kami akan mengirimkan tautan pemulihan kata sandi (berlaku 1 jam).</p>
-          <form id="fForgot" class="f" novalidate style="margin-top:14px">
+          <form id="fForgot" class="vpanel-form" novalidate>
             <label class="fl">Email Akun<input class="in" type="email" name="email" id="forgotEmailIn" required placeholder="kamu@email.com"></label>
-            <p class="a-err" id="forgotErr" role="alert" style="margin:4px 0 0;font-size:12px"></p>
-            <div class="vpanel-btns" style="display:flex;gap:10px;margin-top:16px">
-              <button type="button" class="btn" data-tab-back style="flex:1">Kembali</button>
-              <button class="btn primary" style="flex:1">Kirim Tautan</button>
+            <div id="forgotMsg" class="vmsg" hidden></div>
+            <div class="vpanel-btns">
+              <button type="button" class="btn" data-tab-back>Kembali</button>
+              <button class="btn primary">Kirim Tautan</button>
             </div>
           </form>
         </div>
@@ -164,14 +164,14 @@
           <span class="v-ic" data-i="shield"></span>
           <h3>Atur Kata Sandi Baru</h3>
           <p>Masukkan kata sandi baru untuk akun kamu (minimal 8 karakter).</p>
-          <form id="fReset" class="f" novalidate style="margin-top:14px">
+          <form id="fReset" class="vpanel-form" novalidate>
             <input type="hidden" name="token" id="resetTokenIn">
             <label class="fl">Kata Sandi Baru<input class="in" type="password" name="password" id="resetPwIn" required minlength="8" placeholder="Minimal 8 karakter"></label>
             <label class="fl">Ulangi Kata Sandi<input class="in" type="password" name="confirm" id="resetPwConf" required minlength="8" placeholder="Ulangi kata sandi"></label>
-            <p class="a-err" id="resetErr" role="alert" style="margin:4px 0 0;font-size:12px"></p>
-            <div class="vpanel-btns" style="display:flex;gap:10px;margin-top:16px">
-              <button type="button" class="btn" data-tab-back style="flex:1">Batal</button>
-              <button class="btn primary" style="flex:1">Simpan Sandi Baru</button>
+            <div id="resetMsg" class="vmsg" hidden></div>
+            <div class="vpanel-btns">
+              <button type="button" class="btn" data-tab-back>Batal</button>
+              <button class="btn primary">Simpan Sandi Baru</button>
             </div>
           </form>
         </div>
