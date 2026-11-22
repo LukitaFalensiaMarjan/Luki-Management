@@ -181,12 +181,20 @@ function vDash() {
   const nxt = allEvents().filter(e => e.date >= off(0) && hasQ(e.title.toLowerCase())).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
   const days = Array.from({ length: 7 }, (_, i) => off(i - 6)), cnt = days.map(d => S.tasks.filter(t => t.completedAt && iso(new Date(t.completedAt)) === d).length), mx = Math.max(1, ...cnt);
   const bars = days.map((d, i) => { const r = cnt[i] / mx; return `<div class="bar"><em ${cnt[i] === mx && mx > 1 ? 'class="show"' : ''}>${cnt[i]}</em><i class="${cnt[i] && r >= .75 ? 'b-hi' : cnt[i] && r >= .4 ? 'b-md' : 'b-lo'}" style="height:${Math.max(10, r * 100)}%"></i><span>${DOW[parse(d).getDay()][0]}</span></div>`; }).join('');
-  const team = S.members.filter(m => hasQ(m.name)).slice(0, 4).map(m => {
+  const curTeam = S.teams?.find(t => t.id === activeTeamId) || S.teams?.[0];
+  const curTeamMems = curTeam && teamMembersCache[curTeam.id] ? teamMembersCache[curTeam.id] : S.members;
+  const team = curTeamMems.filter(m => hasQ(m.name)).slice(0, 4).map(m => {
     const o = openTasks(m.id).sort((a, b) => b.prog - a.prog)[0], t = o || S.tasks.filter(t => t.who.includes(m.id))[0];
     const st = !t ? 'Pending' : t.stage === 'done' ? 'Completed' : t.stage === 'todo' ? 'Pending' : 'InProgress';
     return `<div class="crow">${av(m)}<div><b>${esc(m.name)}</b><small>Working on ${esc(t ? t.title : '—')}</small></div><span class="pill s-${st}">${st === 'InProgress' ? 'In Progress' : st}</span></div>`;
   }).join('') || '<p class="mut">Tidak ada hasil.</p>';
-  const row = p => `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><small>Due date: ${short(p.due)}</small></div>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me || S.me.admin ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button><button class="ibtn sm" data-act="edit-proj" data-id="${p.id}" title="Edit project">${ic('edit')}</button><button class="ibtn sm" data-act="del-proj" data-id="${p.id}" title="Hapus project" style="color:var(--bad)">${ic('trash')}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
+  const row = p => {
+    const team = S.teams?.find(t => t.id === p.teamId);
+    const scopeBadge = team 
+      ? `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:var(--ac-soft);color:var(--txt);border:1px solid #0f172a">👥 ${esc(team.name)}</span>` 
+      : `<span class="pill" style="font-size:10.5px;padding:2px 6px;background:#f1f5f9;color:#64748b;border:1px dashed #94a3b8">🔒 Pribadi</span>`;
+    return `<div class="prow"><span class="pico" style="--h:${ph(p.name)}">${esc(p.name[0])}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(p.name)}</b>${scopeBadge}</div><small>Due date: ${short(p.due)}</small></div>${p.status === 'ended' ? `<a class="pill rep" href="/api/projects/${p.id}/report" title="Unduh laporan PDF">${ic('file')}PDF</a>` : ''}${p.ownerId === me || S.me.admin ? `<button class="pill s-${p.status}" data-act="cycle" data-id="${p.id}" title="Klik untuk ganti status">${p.status}</button><button class="ibtn sm" data-act="edit-proj" data-id="${p.id}" title="Edit project">${ic('edit')}</button><button class="ibtn sm" data-act="del-proj" data-id="${p.id}" title="Hapus project" style="color:var(--bad)">${ic('trash')}</button>` : `<span class="pill s-${p.status}" title="Hanya owner yang bisa mengubah">${p.status}</span>`}</div>`;
+  };
   const opts = P.filter(p => p.status !== 'ended').map(p => `<option value="${p.id}" ${TT.pid === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
   return head('Dashboard', 'Everything your team is shipping, in one calm place.', `<button class="btn primary" data-act="add-project">${ic('plus')}Add Project</button><button class="btn" data-act="import">${ic('upload')}Import Data</button>`) +
   `<div class="grid g4" style="margin-bottom:14px">${stat('total', 'Total Projects', tot, 'All projects', 1)}${stat('end', 'Ended Projects', end, 'Completed, report ready')}${stat('run', 'Running Projects', run, 'In progress')}${stat('pen', 'Pending Projects', pen, 'Awaiting review')}</div>
@@ -196,7 +204,7 @@ function vDash() {
     <div class="card"><h3>Project <button class="btn sm" data-act="add-project">${ic('plus')}New</button></h3><div class="plist">${list.map(row).join('') || '<p class="mut">Belum ada project.</p>'}</div></div>
   </div>
   <div class="grid g3">
-    <div class="card"><h3>Team Collaboration <button class="btn sm" data-act="invite">${ic('plus')}Add Member</button></h3><div class="collab">${team}</div></div>
+    <div class="card"><h3>Team Collaboration <button class="btn sm" data-act="invite-team" data-team="${curTeam?.id || 1}">${ic('plus')}Add Member</button></h3><div class="collab">${team}</div></div>
     <div class="card"><h3>Project Progress</h3><div class="gauge"><svg viewBox="0 0 180 100"><path d="M15 90A75 75 0 0 1 165 90" fill="none" stroke="#e9edf5" stroke-width="18" stroke-linecap="round" pathLength="100"/><path class="gauge-arc" data-v="${pct}" d="M15 90A75 75 0 0 1 165 90" fill="none" stroke="var(--ac)" stroke-width="18" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/></svg><div class="pc"><b>${num('pct', pct, 0, '%')}</b><small>Project Ended</small></div></div>
       <div class="legend"><span><i style="background:var(--ac)"></i>Ended</span><span><i style="background:var(--ac-mid)"></i>Running</span><span><i style="background:#cbd5e1"></i>Pending</span></div></div>
     <div class="card tt"><h3>Time Tracker</h3><select class="tt-sel" data-act-change="tt-proj" aria-label="Project untuk waktu kerja"><option value="0">No project</option>${opts}</select><div class="tt-time" aria-live="off">00:00:00</div><div class="tt-b"><button data-act="tt-toggle" aria-label="Mulai atau jeda"></button><button data-act="tt-stop" aria-label="Stop dan simpan">${ic('stop')}</button></div></div>
@@ -220,8 +228,8 @@ function vTeam() {
   const teams = S.teams && S.teams.length ? S.teams : [{ id: 1, name: 'Luki Core Team', logo: 'preset:lion', description: 'Tim Utama Luki Management', myRole: 'Ketua Tim', memberCount: S.members.length }];
   if (!activeTeamId || !teams.find(t => t.id === activeTeamId)) activeTeamId = teams[0].id;
   const curTeam = teams.find(t => t.id === activeTeamId) || teams[0];
-  const myRoleInTeam = curTeam.myRole || (S.me.admin ? 'Ketua Tim' : 'Member');
-  const isLead = S.me.admin || myRoleInTeam === 'Ketua Tim';
+  const myRoleInTeam = curTeam.myRole || 'Member';
+  const isLead = myRoleInTeam === 'Ketua Tim';
 
   const teamOpts = teams.map(t => `<option value="${t.id}" ${t.id === curTeam.id ? 'selected' : ''}>${esc(t.name)} (${esc(t.myRole || 'Member')})</option>`).join('');
   const logoP = curTeam.logo?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === curTeam.logo)?.[1] || '👥') : (curTeam.logo ? `<img src="${curTeam.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : '👥');
@@ -264,6 +272,7 @@ function vTeam() {
   const allDivs = ['All', ...new Set(curMembers.map(m => m.div).filter(Boolean))];
   return head('Team', 'Kelola multi-tim, anggota, peran spesifik tiap tim, dan status online.',
     `<div class="fa" style="margin:0">
+      <button class="btn" data-act="join-team-modal">🔑 Gabung Tim</button>
       <button class="btn" data-act="new-team">${ic('plus')} Buat Tim Baru</button>
       <button class="btn primary" data-act="invite-team" data-team="${curTeam.id}">${ic('mail')} Undang ke Tim</button>
     </div>`) +
@@ -275,6 +284,9 @@ function vTeam() {
             <h2>${esc(curTeam.name)}</h2>
             <span class="role-badge role-lead">👑 Peranmu: ${esc(myRoleInTeam)}</span>
             <span class="role-badge role-count">👥 ${curTeam.memberCount || curMembers.length} Anggota</span>
+            <span class="team-code-pill" data-act="copy-team-code" data-code="${esc(curTeam.code || '')}" title="Klik untuk menyalin kode unik tim">
+              🔑 Kode: <b>${esc(curTeam.code || '—')}</b> <span class="ic">${ic('copy')}</span>
+            </span>
           </div>
           <p>${esc(curTeam.description || 'Ruang kerja kolaborasi tim.')}</p>
         </div>
@@ -562,8 +574,45 @@ function paint(enter) {
   document.documentElement.dataset.accent = S.me.accent || 'ocean';
   const sy = view.scrollTop; view.innerHTML = fn(); view.className = 'view' + (enter ? ' enter' : ''); view.scrollTop = enter ? 0 : sy; post();
 }
+async function promptJoinCode(code) {
+  if (!code) return;
+  code = code.toUpperCase().trim();
+  try {
+    const info = await api('GET', '/api/teams/info-by-code?code=' + encodeURIComponent(code));
+    const alreadyIn = (S?.teams || []).some(t => t.id === info.id);
+    if (alreadyIn) {
+      activeTeamId = info.id;
+      paint(false);
+      toast(`Kamu sudah menjadi anggota tim "${info.name}".`);
+      return;
+    }
+    layer(`${modalHead('Undangan Bergabung Tim')}<div class="f" style="text-align:center;padding:12px 0">
+      <div style="font-size:42px;margin-bottom:8px">${info.logo || '👥'}</div>
+      <h3 style="font-size:18px;margin-bottom:4px;font-family:'Patrick Hand',sans-serif">${esc(info.name)}</h3>
+      <p class="mut" style="font-size:13px;margin-bottom:12px">${esc(info.description || 'Tidak ada deskripsi.')}</p>
+      <div style="display:inline-block;padding:4px 12px;background:var(--ac-soft);border:2px solid #0f172a;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:16px">
+        ${info.memberCount} Anggota &middot; Dibuat oleh ${esc(info.creatorName || 'Ketua Tim')}
+      </div>
+      <p style="font-size:13px;line-height:1.5;margin-bottom:18px">Apakah kamu ingin bergabung ke workspace tim ini?</p>
+      <div class="fa w" style="justify-content:center;gap:10px">
+        <button type="button" class="btn" data-act="close">Batal</button>
+        <button type="button" class="btn primary" data-act="confirm-join-code" data-code="${esc(code)}">Ya, Gabung Sekarang</button>
+      </div>
+    </div>`);
+  } catch (e) {
+    toast(e.message || 'Kode undangan tim tidak valid');
+  }
+}
+
 function route() {
   if (!S) return;
+  const joinMatch = location.hash.match(/[#&?]join=([A-Za-z0-9_-]+)/i);
+  if (joinMatch) {
+    const code = joinMatch[1].toUpperCase();
+    history.replaceState(null, '', location.pathname + '#/team');
+    promptJoinCode(code);
+    return;
+  }
   const r = location.hash.replace(/^#\/?/, '') || 'dashboard'; cur = ROUTES[r] ? r : 'dashboard'; PV = {}; Q = ''; $('#q').value = '';
   const t = ++tok; closePop(); document.body.classList.remove('nav-open');
   view.className = 'view'; view.innerHTML = '<div class="skel"><i></i><i></i><i></i></div>'; post();
@@ -712,12 +761,14 @@ $('#fReg').addEventListener('submit', e => {
   if (d.password !== d.confirm) return authErr(f, 'Konfirmasi password tidak sama');
   const div = d.division_sel === '_custom' ? (d.division_custom || '').trim() : d.division_sel;
   if (!div) return authErr(f, 'Tentukan divisi kamu');
+  const pendingJoin = localStorage.getItem('luki_join_code');
   const payload = {
     name: d.name.trim(),
     email: d.email.trim().toLowerCase(),
     password: d.password,
     username: un,
-    division: div
+    division: div,
+    inviteCode: pendingJoin || undefined
   };
   authSubmit(f, '/api/auth/register', payload);
 });
@@ -731,6 +782,18 @@ async function enter() {
   document.body.className = 'in';
   $('.admin-only').hidden = !S.me.admin;
   connect(); route();
+  const pendingJoin = localStorage.getItem('luki_join_code');
+  if (pendingJoin) {
+    localStorage.removeItem('luki_join_code');
+    api('POST', '/api/teams/join', { code: pendingJoin }).then(async r => {
+      await load();
+      activeTeamId = r.teamId;
+      paint(false);
+      toast(r.message || `Berhasil bergabung ke tim "${r.teamName}"!`);
+    }).catch(e => {
+      console.warn('Pending join error:', e.message);
+    });
+  }
 }
 
 /* ---------- realtime (SSE) ---------- */
@@ -796,7 +859,11 @@ function moveTask(id, stage) {
   toast(`Moved to ${STAGES.find(s => s[0] === stage)[1]}`);
   api('PATCH', '/api/tasks/' + id, { stage }).then(load).catch(e => { Object.assign(t, old); paint(false); if (e.message !== 'auth') toast(e.message); });
 }
-const projOpts = sel => '<option value="">No project</option>' + S.projects.filter(p => p.status !== 'ended').map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+const projOpts = sel => '<option value="">No project</option>' + S.projects.filter(p => p.status !== 'ended').map(p => {
+  const team = S.teams?.find(t => t.id === p.teamId);
+  const badge = team ? ` [👥 ${team.name}]` : ' [🔒 Pribadi]';
+  return `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}${badge}</option>`;
+}).join('');
 const memberChecks = (sel = []) => `<div class="chips">${S.members.map(m => `<label class="chk"><input type="checkbox" name="who" value="${m.id}" ${sel.includes(m.id) ? 'checked' : ''}><span>${av(m)}${esc(m.name.split(' ')[0])}</span></label>`).join('')}</div>`;
 function dlFile(name, text, type = 'text/csv') { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 500); }
 const ago = t => { const m = (Date.now() - t) / 6e4 | 0; return m < 1 ? 'Just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${m / 60 | 0}h ago` : `${m / 1440 | 0}d ago`; };
@@ -938,8 +1005,26 @@ const ACT = {
       if (e.message !== 'auth') toast(e.message);
     }
   },
-  'add-project': () => form(`${modalHead('New project')}<form class="f">${field('Project name', '<input class="in" name="name" required maxlength="60" placeholder="e.g. Payment Gateway">', 1)}${field('Due date', `<input class="in" type="date" name="due" required value="${off(14)}">`, 1)}<div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Add project</button></div></form>`,
-    async fd => { const n = fd.get('name').trim(); if (n) await mut('POST', '/api/projects', { name: n, due: fd.get('due') }, `"${n}" added to projects`); }),
+  'add-project': () => {
+    const curTeam = S.teams?.find(t => t.id === activeTeamId) || S.teams?.[0];
+    const teamOpts = [
+      ...(S.teams || []).map(t => `<option value="${t.id}" ${curTeam && t.id === curTeam.id ? 'selected' : ''}>👥 Tim: ${esc(t.name)} (Sinkron ke seluruh anggota tim)</option>`),
+      `<option value="" ${!curTeam ? 'selected' : ''}>🔒 Proyek Sendiri / Personal (Hanya Saya)</option>`
+    ].join('');
+
+    form(`${modalHead('Project Baru')}<form class="f">
+      ${field('Nama Project', '<input class="in" name="name" required maxlength="60" placeholder="e.g. Website Redesign, Mobile App">', 1)}
+      ${field('Workspace / Tim Project', `<select class="in" name="teamId">${teamOpts}</select><small class="mut" style="display:block;margin-top:4px;font-size:11.5px">Pilih tim agar otomatis tersinkronisasi ke seluruh anggota tim, atau pilih Proyek Sendiri jika hanya untuk Anda.</small>`, 1)}
+      ${field('Due date', `<input class="in" type="date" name="due" required value="${off(14)}">`, 1)}
+      <div class="fa w"><button type="button" class="btn" data-act="close">Batal</button><button class="btn primary">Buat Project</button></div>
+    </form>`,
+    async fd => {
+      const n = (fd.get('name') || '').trim();
+      const rawTeamId = fd.get('teamId');
+      const teamId = rawTeamId ? +rawTeamId : null;
+      if (n) await mut('POST', '/api/projects', { name: n, due: fd.get('due'), teamId }, `Project "${n}" berhasil dibuat`);
+    });
+  },
   import: () => form(`${modalHead('Import projects')}<form><p class="mut" style="font-size:12px;margin-bottom:12px">File CSV dengan kolom <b>name,due,status</b> (due: YYYY-MM-DD; status: pending/running, opsional). Maks 200 baris.</p><label class="drop"><input type="file" name="f" accept=".csv,text/csv" required><span id="fn">Pilih file .csv</span></label><div class="fa"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Import</button></div></form>`,
     async fd => {
       const f = fd.get('f'); if (!f || !f.size) return; if (f.size > 2e5) return toast('File terlalu besar (maks 200 KB)');
@@ -991,14 +1076,22 @@ const ACT = {
   },
   'edit-proj': b => {
     const p = S.projects.find(x => x.id === +b.dataset.id); if (!p) return;
+    const teamOpts = [
+      ...(S.teams || []).map(t => `<option value="${t.id}" ${p.teamId === t.id ? 'selected' : ''}>👥 Tim: ${esc(t.name)}</option>`),
+      `<option value="" ${!p.teamId ? 'selected' : ''}>🔒 Proyek Sendiri (Hanya Saya)</option>`
+    ].join('');
+
     form(`${modalHead('Edit project')}<form class="f">
-      ${field('Project name', `<input class="in" name="name" required maxlength="60" value="${esc(p.name)}">`, 1)}
+      ${field('Nama Project', `<input class="in" name="name" required maxlength="60" value="${esc(p.name)}">`, 1)}
+      ${field('Workspace / Tim', `<select class="in" name="teamId">${teamOpts}</select>`, 1)}
       ${field('Due date', `<input class="in" type="date" name="due" required value="${p.due}">`, 1)}
-      <div class="fa w"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn primary">Save changes</button></div>
+      <div class="fa w"><button type="button" class="btn" data-act="close">Batal</button><button class="btn primary">Simpan Perubahan</button></div>
     </form>`,
     async fd => {
       const n = (fd.get('name') || '').trim();
-      if (n) await mut('PATCH', '/api/projects/' + p.id, { name: n, due: fd.get('due') }, `Project "${n}" diperbarui`);
+      const rawTeamId = fd.get('teamId');
+      const teamId = rawTeamId ? +rawTeamId : null;
+      if (n) await mut('PATCH', '/api/projects/' + p.id, { name: n, due: fd.get('due'), teamId }, `Project "${n}" diperbarui`);
     });
   },
   'del-proj': b => {
@@ -1170,69 +1263,100 @@ const ACT = {
       if (e.message !== 'auth') toast(e.message);
     }
   },
-  'invite-team': b => {
-    const tid = +b.dataset.team;
-    const curTeam = (S.teams || []).find(t => t.id === tid) || { name: 'Tim' };
-    const regUrl = `${location.origin}/?tab=register`;
-    form(`${modalHead('Undang Anggota ke ' + esc(curTeam.name))}<form class="f">
-      <p class="mut" style="font-size:12.5px;line-height:1.5;margin-bottom:12px">Kirim email undangan resmi bergabung ke <b>${esc(curTeam.name)}</b>, atau bagikan tautan pendaftaran langsung.</p>
-      ${field('Email Rekan Tim', '<input class="in" type="email" name="email" required placeholder="rekan@email.com">', 1)}
-      <div class="field" style="margin-top:8px">
-        <label class="lab">Tautan Pendaftaran Cepat</label>
-        <div style="display:flex;gap:6px">
-          <input class="in" id="invLink" value="${regUrl}" readonly style="background:var(--bg);font-size:12px">
-          <button type="button" class="btn sm" data-act="copy-inv">${ic('link')} Salin</button>
-        </div>
-      </div>
+  'copy-team-code': b => {
+    const c = b.dataset.code;
+    if (c) {
+      navigator.clipboard?.writeText(c);
+      toast(`Kode tim "${c}" berhasil disalin!`);
+    }
+  },
+  'copy-inv': b => {
+    const el = $('#invLink');
+    if (el) {
+      navigator.clipboard?.writeText(el.value);
+      toast('Tautan undangan berhasil disalin!');
+    }
+  },
+  'join-team-modal': () => {
+    form(`${modalHead('Gabung ke Tim')}<form class="f">
+      <p class="mut" style="font-size:13px;line-height:1.5;margin-bottom:12px">Masukkan kode unik tim yang dibagikan oleh Ketua Tim untuk langsung bergabung ke workspace tim mereka.</p>
+      ${field('Kode Unik Tim', '<input class="in" name="code" required placeholder="Contoh: LK-XXXXXX" style="font-family:monospace;font-size:15px;font-weight:700;text-transform:uppercase" maxlength="20" autofocus>', 1)}
       <div class="fa w" style="margin-top:14px">
         <button type="button" class="btn" data-act="close">Batal</button>
-        <button class="btn primary">${ic('send')} Kirim Undangan Email</button>
+        <button class="btn primary">Gabung Sekarang</button>
       </div>
     </form>`,
     async fd => {
-      const email = (fd.get('email') || '').trim();
-      if (!email) return;
+      const code = (fd.get('code') || '').trim().toUpperCase();
+      if (!code) return;
       try {
-        const r = await api('POST', '/api/team/invite', { email, teamId: tid });
+        const r = await api('POST', '/api/teams/join', { code });
         closeLayer();
-        if (r.sent) toast(`Undangan ke ${curTeam.name} berhasil dikirim ke ${email}!`);
-        else toast('Tautan pendaftaran siap dibagikan');
+        await load();
+        activeTeamId = r.teamId;
+        paint(false);
+        toast(r.message || `Berhasil bergabung ke tim "${r.teamName}"!`);
       } catch (e) {
         if (e.message !== 'auth') toast(e.message);
       }
     });
   },
-  mv: b => { closePop(); moveTask(+b.dataset.id, b.dataset.k); },
-  'del-task': b => { closePop(); mut('DELETE', '/api/tasks/' + b.dataset.id, null, 'Task deleted', false); },
-  invite: () => {
-    const regUrl = `${location.origin}/?tab=register`;
-    form(`${modalHead('Undang Anggota Tim')}<form class="f">
-      <p class="mut" style="font-size:12.5px;line-height:1.5;margin-bottom:12px">Kirim undangan pendaftaran langsung ke email rekan tim Anda, atau salin tautan pendaftaran di bawah.</p>
-      ${field('Email rekan tim', '<input class="in" type="email" name="email" required placeholder="rekan@email.com">', 1)}
-      <div class="field" style="margin-top:8px">
-        <label class="lab">Atau bagikan tautan pendaftaran</label>
-        <div style="display:flex;gap:6px">
-          <input class="in" id="invLink" value="${regUrl}" readonly style="background:var(--bg);font-size:12px">
-          <button type="button" class="btn sm" data-act="copy-inv">${ic('link')}Salin</button>
+  'confirm-join-code': async b => {
+    const code = b.dataset.code;
+    if (!code) return;
+    try {
+      const r = await api('POST', '/api/teams/join', { code });
+      closeLayer();
+      await load();
+      activeTeamId = r.teamId;
+      paint(false);
+      toast(r.message || `Berhasil bergabung ke tim "${r.teamName}"!`);
+    } catch (e) {
+      if (e.message !== 'auth') toast(e.message);
+    }
+  },
+  'invite-team': b => {
+    const tid = b.dataset.team ? +b.dataset.team : activeTeamId;
+    const curTeam = (S.teams || []).find(t => t.id === tid) || S.teams?.[0] || { name: 'Tim', code: '' };
+    const invUrl = `${location.origin}/#join=${curTeam.code}`;
+    form(`${modalHead('Undang ke ' + esc(curTeam.name))}<form class="f">
+      <div class="w" style="background:var(--ac-soft);border:2px solid #0f172a;border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:2px 2px 0 #0f172a">
+        <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--ac);font-family:'Patrick Hand',sans-serif">1. Bagikan Tautan Undangan Langsung</label>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <input class="in sm" id="invLink" value="${esc(invUrl)}" readonly style="background:#ffffff;font-size:12px;font-family:monospace">
+          <button type="button" class="btn sm primary" data-act="copy-inv">${ic('link')} Salin</button>
+        </div>
+        <small style="color:var(--mut);font-size:11px;margin-top:4px;display:block">Rekan yang membuka tautan ini akan otomatis bergabung ke tim <b>${esc(curTeam.name)}</b>.</small>
+      </div>
+      <div class="w" style="text-align:center;background:#ffffff;border:2px solid #0f172a;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:2px 2px 0 #0f172a">
+        <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--mut);font-family:'Patrick Hand',sans-serif;display:block">2. Atau Masukkan Kode Unik Tim</label>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px">
+          <span class="team-code-big">${esc(curTeam.code)}</span>
+          <button type="button" class="btn sm" data-act="copy-team-code" data-code="${esc(curTeam.code)}">${ic('copy')} Salin</button>
         </div>
       </div>
+      <div class="or w"><span>atau kirim undangan via email</span></div>
+      ${field('Email Calon Anggota', '<input class="in" type="email" name="email" placeholder="rekan@email.com">', 1)}
       <div class="fa w" style="margin-top:14px">
-        <button type="button" class="btn" data-act="close">Batal</button>
-        <button class="btn primary">${ic('send')}Kirim Undangan Email</button>
+        <button type="button" class="btn" data-act="close">Tutup</button>
+        <button class="btn primary">${ic('send')} Kirim Email</button>
       </div>
     </form>`,
     async fd => {
       const email = (fd.get('email') || '').trim();
       if (!email) return;
       try {
-        const r = await api('POST', '/api/team/invite', { email });
+        const r = await api('POST', '/api/team/invite', { email, teamId: curTeam.id });
         closeLayer();
-        if (r.sent) toast(`Undangan berhasil dikirim ke ${email}!`);
-        else toast('Tautan pendaftaran siap dibagikan');
+        if (r.sent) toast(`Undangan email terkirim ke ${email}!`);
+        else toast('Tautan undangan siap dibagikan');
       } catch (e) {
         if (e.message !== 'auth') toast(e.message);
       }
     });
+  },
+  invite: b => {
+    ACT['invite-team'](b || { dataset: { team: activeTeamId } });
   },
   'copy-inv': () => {
     const el = $('#invLink');
@@ -1615,15 +1739,37 @@ const AUTH_MSG = { verified: 'Email terverifikasi. Selamat datang!', invalid: 'T
 document.addEventListener('DOMContentLoaded', async () => {
   $$('[data-i]').forEach(e => e.innerHTML = ic(e.dataset.i));
   const params = new URLSearchParams(location.search);
+  let joinCode = params.get('join');
+  if (!joinCode && location.hash) {
+    const m = location.hash.match(/[#&?]join=([A-Za-z0-9_-]+)/i);
+    if (m) joinCode = m[1];
+  }
+  if (joinCode) {
+    joinCode = joinCode.toUpperCase().trim();
+    localStorage.setItem('luki_join_code', joinCode);
+  }
   const q = params.get('auth');
   const tab = params.get('tab');
   const emailParam = params.get('email');
   const resetToken = params.get('resetToken') || params.get('reset');
   if (q) history.replaceState(null, '', location.pathname + location.hash);
   api('GET', '/api/auth/config').then(c => { document.documentElement.classList.toggle('no-google', !c.google); $('[data-tab=register]').hidden = !c.register; }).catch(() => {});
-  try { await enter(); } catch {
+  try {
+    await enter();
+    if (joinCode) {
+      history.replaceState(null, '', location.pathname + '#/team');
+      promptJoinCode(joinCode);
+    }
+  } catch {
     showAuth();
-    if (resetToken) {
+    if (joinCode) {
+      setTab('register');
+      api('GET', '/api/teams/info-by-code?code=' + encodeURIComponent(joinCode)).then(info => {
+        const msg = $('#fReg .a-err');
+        if (msg) msg.textContent = `Kamu diundang untuk bergabung ke "${info.name}". Silakan daftar atau login!`;
+      }).catch(() => {});
+      setTimeout(() => $('#masuk')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } else if (resetToken) {
       card().classList.add('verifying');
       $('#fLogin').hidden = true;
       $('#fReg').hidden = true;

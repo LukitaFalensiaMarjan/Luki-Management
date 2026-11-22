@@ -778,6 +778,10 @@ label.fl small{font-weight:500}
 .team-hero-t h2{margin:0 0 4px;font-size:20px}
 .team-hero-t p{margin:0;color:var(--mut);font-size:13px}
 .team-hero-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.team-code-pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;background:#ffffff;border:1.5px solid #0f172a;box-shadow:1.5px 1.5px 0 #0f172a;cursor:pointer;transition:transform .12s,box-shadow .12s;color:#0f172a;font-family:'Patrick Hand',sans-serif}
+.team-code-pill:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 #0f172a}
+.team-code-pill b{font-family:monospace;font-size:13.5px;letter-spacing:1px;color:var(--ac)}
+.team-code-big{font-family:monospace;font-size:24px;font-weight:800;letter-spacing:3px;color:var(--ac);background:#ffffff;border:2px solid #0f172a;padding:8px 18px;border-radius:12px;box-shadow:2px 2px 0 #0f172a;display:inline-block}
 
 /* member card enhancements */
 .mcard-badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;margin:8px 0 10px}

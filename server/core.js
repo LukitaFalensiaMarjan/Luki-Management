@@ -60,6 +60,7 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
   add('birth_date', 'TEXT'); add('share_birthday', 'INTEGER NOT NULL DEFAULT 0');
   add('team_role', "TEXT NOT NULL DEFAULT 'Member'");
   add('reset_hash', 'TEXT'); add('reset_exp', 'INTEGER');
+  add('invite_team_id', 'INTEGER REFERENCES teams(id) ON DELETE SET NULL');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_google ON users(google_id) WHERE google_id IS NOT NULL');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_username ON users(username) WHERE username IS NOT NULL');
   for (const e of (process.env.ADMIN_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean)) db.prepare('UPDATE users SET is_admin=1 WHERE email=?').run(e);
@@ -87,6 +88,7 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
     name TEXT NOT NULL,
     logo TEXT NOT NULL DEFAULT 'preset:lion',
     description TEXT NOT NULL DEFAULT '',
+    code TEXT UNIQUE,
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at INTEGER NOT NULL
   );
@@ -116,12 +118,25 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
   CREATE INDEX IF NOT EXISTS ix_tcom ON task_comments(task_id, id);
   `);
 
+  const teamCols = new Set(db.prepare('PRAGMA table_info(teams)').all().map(c => c.name));
+  if (!teamCols.has('code')) {
+    db.exec("ALTER TABLE teams ADD COLUMN code TEXT");
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ix_team_code ON teams(code)");
+  }
+  const teamsWithoutCode = db.prepare("SELECT id FROM teams WHERE code IS NULL OR code = ''").all();
+  for (const t of teamsWithoutCode) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'LK-';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    db.prepare('UPDATE teams SET code=? WHERE id=?').run(code, t.id);
+  }
+
   // Seed default team if no teams exist yet
   const tCount = db.prepare('SELECT COUNT(*) as c FROM teams').get()?.c || 0;
   if (tCount === 0) {
     const adm = db.prepare('SELECT id, name FROM users WHERE is_admin=1 ORDER BY id LIMIT 1').get() || db.prepare('SELECT id, name FROM users ORDER BY id LIMIT 1').get();
     if (adm) {
-      const initT = db.prepare("INSERT INTO teams(name, logo, description, created_by, created_at) VALUES ('Luki Core Team', 'preset:lion', 'Tim Utama Luki Management', ?, ?)").run(adm.id, Date.now());
+      const initT = db.prepare("INSERT INTO teams(name, logo, description, code, created_by, created_at) VALUES ('Luki Core Team', 'preset:lion', 'Tim Utama Luki Management', 'LK-CORE01', ?, ?)").run(adm.id, Date.now());
       const defTeamId = initT.lastInsertRowid;
       const allU = db.prepare('SELECT id, is_admin, team_role FROM users').all();
       for (const u of allU) {
@@ -166,6 +181,13 @@ function notify(uid, kind, text, opt = {}) {
   if (kind !== 'chat') { run('INSERT INTO notifications(user_id,kind,text,created_at) VALUES(?,?,?,?)', uid, kind, text, now()); pushUser(uid, { type: 'notif', text }); }
   if (u.tg_chat_id && hooks.tg && (kind !== 'chat' || !online(uid))) hooks.tg(u.tg_chat_id, text, opt.doc).catch(e => console.error('[telegram]', e.message));
 }
+function genTeamCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = 'LK-';
+  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+
 const activity = (uid, pid, text) => run('INSERT INTO activity(user_id,project_id,text,created_at) VALUES(?,?,?,?)', uid ?? null, pid ?? null, text, now());
 
-module.exports = { db, all, one, run, tx, now, ymd, today, dayOf, daysTo, addDays, hashPw, verifyPw, clients, online, pushUser, broadcast, hooks, notify, activity };
+module.exports = { db, all, one, run, tx, now, ymd, today, dayOf, daysTo, addDays, hashPw, verifyPw, clients, online, pushUser, broadcast, hooks, notify, activity, genTeamCode };
