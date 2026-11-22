@@ -106,6 +106,9 @@
         <form id="fLogin" novalidate>
           <label class="fl">Email<input class="in" type="email" name="email" autocomplete="email" inputmode="email" required maxlength="100" placeholder="kamu@email.com"></label>
           <label class="fl">Password<span class="pw"><input class="in" type="password" name="password" autocomplete="current-password" required maxlength="100" placeholder="Minimal 8 karakter"><button type="button" class="eye" data-eye aria-label="Tampilkan password">Lihat</button></span></label>
+          <div style="display:flex;justify-content:flex-end;margin:-4px 0 10px">
+            <button type="button" class="linkbtn" data-act="forgot-link" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:0">Lupa kata sandi?</button>
+          </div>
           <p class="a-err" role="alert"></p>
           <button type="button" class="linkbtn" data-resend hidden>Kirim ulang email verifikasi</button>
           <button class="btn primary big">Login</button>
@@ -144,6 +147,28 @@
           <p class="mut" id="vNote" hidden>Server belum mengatur SMTP, jadi email belum terkirim. Admin: lihat tautan di console server atau isi SMTP di .env.</p>
           <div class="fa"><button class="btn" data-tab-back>Kembali ke login</button><button class="btn primary" data-resend>Kirim ulang</button></div>
         </div>
+        <div id="forgotPanel" class="vpanel" hidden>
+          <span class="v-ic" data-i="mail"></span>
+          <h3>Lupa Kata Sandi?</h3>
+          <p>Masukkan alamat email kamu. Kami akan mengirimkan tautan pemulihan kata sandi (berlaku 1 jam).</p>
+          <form id="fForgot" class="f" novalidate style="margin-top:14px">
+            <label class="fl">Email Akun<input class="in" type="email" name="email" id="forgotEmailIn" required placeholder="kamu@email.com"></label>
+            <p class="a-err" id="forgotErr" role="alert"></p>
+            <div class="fa" style="margin-top:14px"><button type="button" class="btn" data-tab-back>Kembali ke login</button><button class="btn primary">Kirim Tautan</button></div>
+          </form>
+        </div>
+        <div id="resetPanel" class="vpanel" hidden>
+          <span class="v-ic" data-i="shield"></span>
+          <h3>Atur Kata Sandi Baru</h3>
+          <p>Masukkan kata sandi baru untuk akun kamu (minimal 8 karakter).</p>
+          <form id="fReset" class="f" novalidate style="margin-top:14px">
+            <input type="hidden" name="token" id="resetTokenIn">
+            <label class="fl">Kata Sandi Baru<input class="in" type="password" name="password" id="resetPwIn" required minlength="8" placeholder="Minimal 8 karakter"></label>
+            <label class="fl">Ulangi Kata Sandi<input class="in" type="password" name="confirm" id="resetPwConf" required minlength="8"></label>
+            <p class="a-err" id="resetErr" role="alert"></p>
+            <div class="fa" style="margin-top:14px"><button type="button" class="btn" data-tab-back>Kembali ke login</button><button class="btn primary">Simpan Sandi Baru</button></div>
+          </form>
+        </div>
       </div>
     </section>
   </main>
@@ -167,6 +192,7 @@
       <p class="cap">Pribadi</p>
       <a href="#/personal" data-r="personal"><span data-i="heart"></span><b>Ruang Pribadi</b></a>
       <p class="cap general">General</p>
+      <a href="#/profile" data-r="profile" class="general"><span data-i="user"></span><b>Profile</b></a>
       <a href="#/admin" data-r="admin" class="general admin-only" hidden><span data-i="shield"></span><b>Admin</b></a>
       <a href="#/settings" data-r="settings" class="general"><span data-i="settings"></span><b>Settings</b></a>
       <button class="navbtn general" data-act="help"><span data-i="help"></span><b>Help</b></button>

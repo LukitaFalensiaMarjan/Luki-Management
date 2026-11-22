@@ -59,6 +59,7 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
   add('address', "TEXT NOT NULL DEFAULT ''"); add('birth_place', "TEXT NOT NULL DEFAULT ''");
   add('birth_date', 'TEXT'); add('share_birthday', 'INTEGER NOT NULL DEFAULT 0');
   add('team_role', "TEXT NOT NULL DEFAULT 'Member'");
+  add('reset_hash', 'TEXT'); add('reset_exp', 'INTEGER');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_google ON users(google_id) WHERE google_id IS NOT NULL');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_username ON users(username) WHERE username IS NOT NULL');
   for (const e of (process.env.ADMIN_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean)) db.prepare('UPDATE users SET is_admin=1 WHERE email=?').run(e);
@@ -72,6 +73,64 @@ CREATE INDEX IF NOT EXISTS ix_personal_remind ON personal(remind_at) WHERE remin
   }
   // Ensure Ketua Tim role for admins
   db.exec("UPDATE users SET team_role='Ketua Tim' WHERE is_admin=1 AND (team_role IS NULL OR team_role='Member' OR team_role='')");
+
+  // Migration for tasks (description) and projects (team_id)
+  const taskCols = new Set(db.prepare('PRAGMA table_info(tasks)').all().map(c => c.name));
+  if (!taskCols.has('description')) db.exec("ALTER TABLE tasks ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+  const projCols = new Set(db.prepare('PRAGMA table_info(projects)').all().map(c => c.name));
+  if (!projCols.has('team_id')) db.exec("ALTER TABLE projects ADD COLUMN team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL");
+
+  // Multi-team tables
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS teams(
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    logo TEXT NOT NULL DEFAULT 'preset:lion',
+    description TEXT NOT NULL DEFAULT '',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS team_members(
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'Member' CHECK(role IN('Ketua Tim','Project Manager','Member','Viewer')),
+    joined_at INTEGER NOT NULL,
+    PRIMARY KEY(team_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS ix_tm_user ON team_members(user_id);
+  CREATE TABLE IF NOT EXISTS task_checklists(
+    id INTEGER PRIMARY KEY,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS ix_tchk ON task_checklists(task_id);
+  CREATE TABLE IF NOT EXISTS task_comments(
+    id INTEGER PRIMARY KEY,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS ix_tcom ON task_comments(task_id, id);
+  `);
+
+  // Seed default team if no teams exist yet
+  const tCount = db.prepare('SELECT COUNT(*) as c FROM teams').get()?.c || 0;
+  if (tCount === 0) {
+    const adm = db.prepare('SELECT id, name FROM users WHERE is_admin=1 ORDER BY id LIMIT 1').get() || db.prepare('SELECT id, name FROM users ORDER BY id LIMIT 1').get();
+    if (adm) {
+      const initT = db.prepare("INSERT INTO teams(name, logo, description, created_by, created_at) VALUES ('Luki Core Team', 'preset:lion', 'Tim Utama Luki Management', ?, ?)").run(adm.id, Date.now());
+      const defTeamId = initT.lastInsertRowid;
+      const allU = db.prepare('SELECT id, is_admin, team_role FROM users').all();
+      for (const u of allU) {
+        const r = u.is_admin ? 'Ketua Tim' : (u.team_role || 'Member');
+        db.prepare('INSERT OR IGNORE INTO team_members(team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)').run(defTeamId, u.id, r, Date.now());
+      }
+      db.prepare('UPDATE projects SET team_id=? WHERE team_id IS NULL').run(defTeamId);
+    }
+  }
 }
 
 const all = (s, ...p) => db.prepare(s).all(...p);

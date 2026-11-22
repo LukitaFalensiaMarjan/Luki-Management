@@ -20,14 +20,24 @@ const sendVerify = (to, name, link) => send(to, 'Verifikasi email akun LUKI MANA
     <p style="color:#94a3b8;font-size:12px">Bukan kamu yang mendaftar? Abaikan email ini.</p></div>`,
   `Halo ${name}, verifikasi email akun LUKI MANAGEMENT kamu (berlaku 24 jam): ${link}`);
 
-const sendInvite = (to, inviterName, link) => send(to, `${inviterName} mengundangmu bergabung ke LUKI MANAGEMENT`,
+const sendInvite = (to, inviterName, link, teamName = 'Tim') => send(to, `${inviterName} mengundangmu bergabung ke ${teamName} di LUKI MANAGEMENT`,
   `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0f172a">
     <div style="background:#0b1f5c;color:#fff;border-radius:14px;padding:20px 22px"><b style="font-size:18px">LUKI MANAGEMENT</b></div>
-    <h2 style="margin:22px 0 8px">Undangan Bergabung ke Tim</h2>
-    <p style="color:#475569;line-height:1.6">Halo, <b>${esc(inviterName)}</b> mengundang kamu untuk bergabung dalam ruang kerja kolaborasi tim di <b>LUKI MANAGEMENT</b>.</p>
+    <h2 style="margin:22px 0 8px">Undangan Bergabung ke ${esc(teamName)}</h2>
+    <p style="color:#475569;line-height:1.6">Halo, <b>${esc(inviterName)}</b> mengundang kamu untuk bergabung ke <b>${esc(teamName)}</b> di ruang kerja <b>LUKI MANAGEMENT</b>.</p>
     <p style="margin:24px 0"><a href="${esc(link)}" style="background:#1e47b8;color:#fff;text-decoration:none;padding:12px 22px;border-radius:99px;font-weight:bold">Terima Undangan & Daftar</a></p>
     <p style="color:#94a3b8;font-size:12px">Jika tombol di atas tidak berfungsi, salin tautan pendaftaran ini:<br>${esc(link)}</p>
     <p style="color:#94a3b8;font-size:12px">Bukan kamu yang seharusnya menerima email ini? Abaikan pesan ini.</p></div>`,
-  `Halo, ${inviterName} mengundangmu bergabung ke LUKI MANAGEMENT: ${link}`);
+  `Halo, ${inviterName} mengundangmu bergabung ke ${teamName} di LUKI MANAGEMENT: ${link}`);
 
-module.exports = { send, sendVerify, sendInvite, enabled: () => !!tx };
+const sendReset = (to, name, link) => send(to, 'Atur ulang kata sandi akun LUKI MANAGEMENT',
+  `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0f172a">
+    <div style="background:#0b1f5c;color:#fff;border-radius:14px;padding:20px 22px"><b style="font-size:18px">LUKI MANAGEMENT</b></div>
+    <h2 style="margin:22px 0 8px">Atur Ulang Kata Sandi</h2>
+    <p style="color:#475569;line-height:1.6">Halo <b>${esc(name)}</b>, kami menerima permintaan untuk mengatur ulang kata sandi akun kamu. Tautan ini berlaku selama 1 jam.</p>
+    <p style="margin:24px 0"><a href="${esc(link)}" style="background:#1e47b8;color:#fff;text-decoration:none;padding:12px 22px;border-radius:99px;font-weight:bold">Atur Ulang Kata Sandi</a></p>
+    <p style="color:#94a3b8;font-size:12px">Jika kamu tidak meminta pengaturan ulang kata sandi, abaikan email ini. Akunmu tetap aman.</p>
+    <p style="color:#94a3b8;font-size:12px">Atau salin tautan ini:<br>${esc(link)}</p></div>`,
+  `Halo ${name}, atur ulang kata sandi LUKI MANAGEMENT kamu (berlaku 1 jam): ${link}`);
+
+module.exports = { send, sendVerify, sendInvite, sendReset, enabled: () => !!tx };

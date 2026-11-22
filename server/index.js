@@ -79,6 +79,8 @@ app.get('/api/auth/verify', (req, res) => {
   const u = t && one('SELECT id,disabled FROM users WHERE verify_hash=? AND verify_exp>?', sha(t), now());
   if (!u) return res.redirect('/?auth=invalid');
   run('UPDATE users SET email_verified=1,verify_hash=NULL,verify_exp=NULL,last_login=? WHERE id=?', now(), u.id);
+  const defTeam = one('SELECT id FROM teams ORDER BY id ASC LIMIT 1');
+  if (defTeam) run("INSERT OR IGNORE INTO team_members(team_id, user_id, role, joined_at) VALUES(?,?, 'Member', ?)", defTeam.id, u.id, now());
   if (u.disabled) return res.redirect('/?auth=disabled');
   startSession(res, u.id); res.redirect('/?auth=verified#/dashboard');
 });
@@ -88,6 +90,34 @@ app.post('/api/auth/resend', async (req, res) => {
   const u = EMAIL.test(email) && one('SELECT id,email,name FROM users WHERE email=? AND email_verified=0', email);
   if (u) await sendVerify(u);
   res.json({ ok: true }); // same answer whether or not the account exists
+});
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (limited('forgot' + req.ip, 5)) throw E(429, 'Terlalu banyak permintaan reset kata sandi, coba lagi dalam 10 menit');
+  if (!EMAIL.test(email)) throw E(400, 'Format email tidak valid');
+  const u = one('SELECT id, name, email FROM users WHERE email=? AND disabled=0', email);
+  if (u) {
+    const tok = crypto.randomBytes(32).toString('base64url');
+    run('UPDATE users SET reset_hash=?, reset_exp=? WHERE id=?', sha(tok), now() + 3600000, u.id);
+    const link = `${APP_URL}/?resetToken=${tok}`;
+    try {
+      await mail.sendReset(u.email, u.name, link);
+    } catch (e) {
+      console.error('[mail:reset]', e.message);
+    }
+  }
+  res.json({ ok: true, message: 'Jika email terdaftar, tautan pemulihan telah dikirim. Silakan periksa inbox atau spam kamu.' });
+});
+app.post('/api/auth/reset-password', async (req, res) => {
+  const tok = String(req.body?.token || '').trim();
+  const pw = s(req.body?.password || '', 100, 8);
+  if (!tok) throw E(400, 'Token reset tidak valid');
+  const u = one('SELECT id FROM users WHERE reset_hash=? AND reset_exp>?', sha(tok), now());
+  if (!u) throw E(400, 'Tautan reset sudah kedaluwarsa atau tidak valid. Silakan ajukan lupa kata sandi kembali.');
+  const hash = await hashPw(pw);
+  run('UPDATE users SET pass_hash=?, reset_hash=NULL, reset_exp=NULL WHERE id=?', hash, u.id);
+  run('DELETE FROM sessions WHERE user_id=?', u.id);
+  res.json({ ok: true, message: 'Kata sandi berhasil diperbarui. Silakan login kembali.' });
 });
 const DUMMY = hashPw('dummy-password');
 app.post('/api/auth/login', async (req, res) => {
@@ -141,6 +171,8 @@ app.get('/api/auth/google/callback', async (req, res) => {
       const isFirst = firstUser();
       const teamRole = isFirst ? 'Ketua Tim' : 'Member';
       u = { id: run('INSERT INTO users(name,username,email,pass_hash,google_id,email_verified,is_admin,team_role,role,created_at,last_login) VALUES(?,?,?,?,?,1,?,?,?,?,?)', name, un, email, '', g.sub, isFirst ? 1 : 0, teamRole, teamRole, now(), now()).lastInsertRowid };
+      const defTeam = one('SELECT id FROM teams ORDER BY id ASC LIMIT 1');
+      if (defTeam) run("INSERT OR IGNORE INTO team_members(team_id, user_id, role, joined_at) VALUES(?,?, 'Member', ?)", defTeam.id, u.id, now());
     }
     startSession(res, u.id); res.redirect('/#/dashboard');
   } catch (e) { console.error('[google]', e.message); res.redirect('/?auth=google_fail'); }
@@ -149,17 +181,25 @@ app.get('/api/auth/google/callback', async (req, res) => {
 app.use('/api', auth);
 
 /* ---------- bootstrap ---------- */
-const taskOut = (t, who) => ({ id: t.id, projectId: t.project_id, title: t.title, tag: t.tag, prio: t.prio, stage: t.stage, due: t.due, prog: t.prog, who: who.get(t.id) || [], createdAt: t.created_at, completedAt: t.completed_at });
+const taskOut = (t, who) => ({ id: t.id, projectId: t.project_id, title: t.title, description: t.description || '', tag: t.tag, prio: t.prio, stage: t.stage, due: t.due, prog: t.prog, who: who.get(t.id) || [], createdAt: t.created_at, completedAt: t.completed_at });
 app.get('/api/bootstrap', (req, res) => {
   const who = new Map(); for (const a of all('SELECT task_id,user_id FROM task_assignees')) (who.get(a.task_id) || who.set(a.task_id, []).get(a.task_id)).push(a.user_id);
   const unread = {}; for (const r of all('SELECT from_id,COUNT(*) c FROM messages WHERE to_id=? AND read_at IS NULL GROUP BY from_id', req.user.id)) unread[r.from_id] = r.c;
+  const teams = all(`
+    SELECT t.id, t.name, t.logo, t.description, t.created_by as createdBy, t.created_at as createdAt,
+           COALESCE(tm.role, 'Viewer') as myRole,
+           (SELECT COUNT(*) FROM team_members WHERE team_id=t.id) as memberCount
+    FROM teams t
+    LEFT JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?
+    ORDER BY t.id ASC
+  `, req.user.id);
   res.json({
     me: meUser(req.user), members: all('SELECT * FROM users WHERE disabled=0 AND email_verified=1 ORDER BY id').map(pubUser),
     projects: all('SELECT id,name,due,status,owner_id ownerId,created_at createdAt,completed_at completedAt FROM projects ORDER BY id'),
     tasks: all('SELECT * FROM tasks ORDER BY id').map(t => taskOut(t, who)),
     events: all('SELECT id,title,date,time,type FROM events ORDER BY date,time'),
     notifs: all('SELECT id,text,kind,created_at at,read_at IS NULL unread FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 20', req.user.id),
-    unread, tg: { enabled: tg.enabled(), bot: tg.botName() },
+    teams, unread, tg: { enabled: tg.enabled(), bot: tg.botName() },
   });
 });
 
@@ -215,8 +255,9 @@ function setWho(tid, ids, actor) {
 const projId = v => { if (v == null || v === '') return null; const id = int(v); if (!one('SELECT id FROM projects WHERE id=?', id)) throw E(400, 'Project tidak ditemukan'); return id; };
 app.post('/api/tasks', (req, res) => {
   const b = req.body || {}, title = s(b.title, 80), pid = projId(b.projectId);
+  const desc = s(b.description || '', 2000, 0);
   const id = tx(() => {
-    const r = run('INSERT INTO tasks(project_id,title,tag,prio,stage,due,prog,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?)', pid, title, en(b.tag || 'Frontend', TAGS), en(b.prio || 'Medium', PRIO), 'todo', D(b.due), 0, req.user.id, now());
+    const r = run('INSERT INTO tasks(project_id,title,description,tag,prio,stage,due,prog,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)', pid, title, desc, en(b.tag || 'Frontend', TAGS), en(b.prio || 'Medium', PRIO), 'todo', D(b.due), 0, req.user.id, now());
     setWho(r.lastInsertRowid, b.who, req.user); return r.lastInsertRowid;
   });
   activity(req.user.id, pid, `${req.user.name} membuat task "${title}"`);
@@ -226,6 +267,7 @@ app.patch('/api/tasks/:id', (req, res) => {
   const t = one('SELECT * FROM tasks WHERE id=?', int(req.params.id)); if (!t) throw E(404, 'Task tidak ditemukan');
   const b = req.body || {}, f = {};
   if ('title' in b) f.title = s(b.title, 80);
+  if ('description' in b) f.description = s(b.description, 2000, 0);
   if ('tag' in b) f.tag = en(b.tag, TAGS);
   if ('prio' in b) f.prio = en(b.prio, PRIO);
   if ('due' in b) f.due = D(b.due);
@@ -240,10 +282,118 @@ app.patch('/api/tasks/:id', (req, res) => {
 });
 app.delete('/api/tasks/:id', (req, res) => { const t = one('SELECT * FROM tasks WHERE id=?', int(req.params.id)); if (!t) throw E(404, 'Task tidak ditemukan'); run('DELETE FROM tasks WHERE id=?', t.id); activity(req.user.id, t.project_id, `${req.user.name} menghapus task "${t.title}"`); res.json({ ok: true }); });
 
+/* ---------- task details: subtasks & comments ---------- */
+app.get('/api/tasks/:id/details', (req, res) => {
+  const tid = int(req.params.id);
+  const t = one('SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON p.id=t.project_id WHERE t.id=?', tid);
+  if (!t) throw E(404, 'Task tidak ditemukan');
+  const assignees = all('SELECT u.id, u.name, u.username, u.avatar, u.division, u.team_role FROM task_assignees ta JOIN users u ON u.id=ta.user_id WHERE ta.task_id=?', tid);
+  const checklists = all('SELECT id, title, done, created_at FROM task_checklists WHERE task_id=? ORDER BY id ASC', tid);
+  const comments = all(`
+    SELECT tc.id, tc.user_id as userId, u.name as userName, u.username as userUsername, u.avatar as userAvatar, tc.content, tc.created_at as createdAt
+    FROM task_comments tc
+    JOIN users u ON u.id=tc.user_id
+    WHERE tc.task_id=?
+    ORDER BY tc.id ASC
+  `, tid);
+  res.json({
+    task: {
+      id: t.id,
+      projectId: t.project_id,
+      projectName: t.project_name || '',
+      title: t.title,
+      description: t.description || '',
+      tag: t.tag,
+      prio: t.prio,
+      stage: t.stage,
+      due: t.due,
+      prog: t.prog,
+      assignees,
+      createdAt: t.created_at,
+      completedAt: t.completed_at
+    },
+    checklists,
+    comments
+  });
+});
+
+app.post('/api/tasks/:id/checklists', (req, res) => {
+  const tid = int(req.params.id);
+  const t = one('SELECT id FROM tasks WHERE id=?', tid);
+  if (!t) throw E(404, 'Task tidak ditemukan');
+  const title = s(req.body?.title, 120);
+  const r = run('INSERT INTO task_checklists(task_id, title, done, created_at) VALUES(?,?,0,?)', tid, title, now());
+  res.status(201).json({ id: r.lastInsertRowid, title, done: 0 });
+});
+
+app.patch('/api/checklists/:id', (req, res) => {
+  const cid = int(req.params.id);
+  const c = one('SELECT * FROM task_checklists WHERE id=?', cid);
+  if (!c) throw E(404, 'Checklist tidak ditemukan');
+  const b = req.body || {}, f = {};
+  if ('done' in b) f.done = b.done ? 1 : 0;
+  if ('title' in b) f.title = s(b.title, 120);
+  const k = Object.keys(f);
+  if (k.length) run(`UPDATE task_checklists SET ${k.map(x => x + '=?').join(',')} WHERE id=?`, ...k.map(x => f[x]), cid);
+  res.json({ ok: true, done: f.done ?? c.done });
+});
+
+app.delete('/api/checklists/:id', (req, res) => {
+  const cid = int(req.params.id);
+  run('DELETE FROM task_checklists WHERE id=?', cid);
+  res.json({ ok: true });
+});
+
+app.post('/api/tasks/:id/comments', (req, res) => {
+  const tid = int(req.params.id);
+  const t = one('SELECT id, project_id, title FROM tasks WHERE id=?', tid);
+  if (!t) throw E(404, 'Task tidak ditemukan');
+  const content = s(req.body?.content, 1000);
+  const r = run('INSERT INTO task_comments(task_id, user_id, content, created_at) VALUES(?,?,?,?)', tid, req.user.id, content, now());
+  const newC = {
+    id: r.lastInsertRowid,
+    userId: req.user.id,
+    userName: req.user.name,
+    userUsername: req.user.username || '',
+    userAvatar: req.user.avatar || '',
+    content,
+    createdAt: now()
+  };
+  const assignees = all('SELECT user_id FROM task_assignees WHERE task_id=? AND user_id!=?', tid, req.user.id);
+  for (const a of assignees) notify(a.user_id, 'chat', `${req.user.name} mengomentari task "${t.title}": ${content.slice(0, 80)}`);
+  broadcast({ type: 'task_comment', taskId: tid, comment: newC });
+  res.status(201).json(newC);
+});
+
+app.delete('/api/comments/:id', (req, res) => {
+  const cid = int(req.params.id);
+  const c = one('SELECT * FROM task_comments WHERE id=?', cid);
+  if (!c) throw E(404, 'Komentar tidak ditemukan');
+  if (c.user_id !== req.user.id && !req.user.is_admin) throw E(403, 'Tidak dapat menghapus komentar ini');
+  run('DELETE FROM task_comments WHERE id=?', cid);
+  res.json({ ok: true });
+});
+
 /* ---------- events, time, me ---------- */
 app.post('/api/events', (req, res) => {
   const b = req.body || {}; const t = s(b.time, 5, 5); if (!/^\d{2}:\d{2}$/.test(t)) throw E(400, 'Jam tidak valid');
   const r = run('INSERT INTO events(title,date,time,type,created_by) VALUES(?,?,?,?,?)', s(b.title, 60), D(b.date), t, en(b.type, EV), req.user.id); res.status(201).json({ id: r.lastInsertRowid });
+});
+app.patch('/api/events/:id', (req, res) => {
+  const ev = one('SELECT * FROM events WHERE id=?', int(req.params.id));
+  if (!ev) throw E(404, 'Event tidak ditemukan');
+  const b = req.body || {}, f = {};
+  if ('title' in b) f.title = s(b.title, 60);
+  if ('date' in b) f.date = D(b.date);
+  if ('time' in b) {
+    const t = s(b.time, 5, 5);
+    if (!/^\d{2}:\d{2}$/.test(t)) throw E(400, 'Jam tidak valid');
+    f.time = t;
+  }
+  if ('type' in b) f.type = en(b.type, EV);
+  const k = Object.keys(f);
+  if (k.length) run(`UPDATE events SET ${k.map(x => x + '=?').join(',')} WHERE id=?`, ...k.map(x => f[x]), ev.id);
+  res.json({ ok: true });
 });
 app.delete('/api/events/:id', (req, res) => { run('DELETE FROM events WHERE id=?', int(req.params.id)); res.json({ ok: true }); });
 app.post('/api/time', (req, res) => {
@@ -290,6 +440,133 @@ app.post('/api/me/password', async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ---------- teams (multi-team & per-team RBAC) ---------- */
+app.get('/api/teams', (req, res) => {
+  const teams = all(`
+    SELECT t.id, t.name, t.logo, t.description, t.created_by as createdBy, t.created_at as createdAt,
+           COALESCE(tm.role, 'Viewer') as myRole,
+           (SELECT COUNT(*) FROM team_members WHERE team_id=t.id) as memberCount
+    FROM teams t
+    LEFT JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?
+    ORDER BY t.id ASC
+  `, req.user.id);
+  res.json(teams);
+});
+
+app.post('/api/teams', (req, res) => {
+  const b = req.body || {};
+  const name = s(b.name, 60, 2);
+  const logo = typeof b.logo === 'string' && b.logo ? b.logo.slice(0, 500000) : 'preset:rocket';
+  const description = s(b.description || '', 200, 0);
+  const id = tx(() => {
+    const r = run('INSERT INTO teams(name, logo, description, created_by, created_at) VALUES(?,?,?,?,?)', name, logo, description, req.user.id, now());
+    const tid = r.lastInsertRowid;
+    run("INSERT INTO team_members(team_id, user_id, role, joined_at) VALUES(?,?, 'Ketua Tim', ?)", tid, req.user.id, now());
+    return tid;
+  });
+  activity(req.user.id, null, `${req.user.name} membuat tim baru "${name}"`);
+  broadcast({ type: 'data' });
+  res.status(201).json({ id, name, logo, description, myRole: 'Ketua Tim', memberCount: 1 });
+});
+
+app.patch('/api/teams/:id', (req, res) => {
+  const tid = int(req.params.id);
+  const t = one('SELECT * FROM teams WHERE id=?', tid);
+  if (!t) throw E(404, 'Tim tidak ditemukan');
+  const myMem = one('SELECT role FROM team_members WHERE team_id=? AND user_id=?', tid, req.user.id);
+  if (!req.user.is_admin && (!myMem || myMem.role !== 'Ketua Tim')) throw E(403, 'Hanya Ketua Tim atau Admin yang dapat mengubah profil tim ini');
+  const b = req.body || {}, f = {};
+  if ('name' in b) f.name = s(b.name, 60, 2);
+  if ('logo' in b) f.logo = typeof b.logo === 'string' && b.logo ? b.logo.slice(0, 500000) : t.logo;
+  if ('description' in b) f.description = s(b.description, 200, 0);
+  const k = Object.keys(f);
+  if (k.length) run(`UPDATE teams SET ${k.map(x => x + '=?').join(',')} WHERE id=?`, ...k.map(x => f[x]), tid);
+  broadcast({ type: 'data' });
+  res.json({ ok: true });
+});
+
+app.delete('/api/teams/:id', (req, res) => {
+  const tid = int(req.params.id);
+  const t = one('SELECT * FROM teams WHERE id=?', tid);
+  if (!t) throw E(404, 'Tim tidak ditemukan');
+  const totalTeams = one('SELECT COUNT(*) as c FROM teams').c;
+  if (totalTeams <= 1) throw E(400, 'Tidak dapat menghapus tim terakhir. Workspace harus memiliki minimal 1 tim.');
+  const myMem = one('SELECT role FROM team_members WHERE team_id=? AND user_id=?', tid, req.user.id);
+  if (!req.user.is_admin && (!myMem || myMem.role !== 'Ketua Tim')) throw E(403, 'Hanya Ketua Tim atau Admin yang dapat menghapus tim');
+  run('DELETE FROM teams WHERE id=?', tid);
+  broadcast({ type: 'data' });
+  res.json({ ok: true });
+});
+
+app.get('/api/teams/:id/members', (req, res) => {
+  const tid = int(req.params.id);
+  const team = one('SELECT * FROM teams WHERE id=?', tid);
+  if (!team) throw E(404, 'Tim tidak ditemukan');
+  const myMem = one('SELECT role FROM team_members WHERE team_id=? AND user_id=?', tid, req.user.id);
+  const members = all(`
+    SELECT u.id, u.name, u.username, u.email, u.avatar, u.division as div, u.location as loc,
+           u.address, u.birth_place, u.birth_date, u.share_birthday, u.is_admin,
+           tm.role, tm.joined_at,
+           (SELECT COUNT(*) FROM tasks t JOIN task_assignees a ON a.task_id=t.id WHERE a.user_id=u.id AND t.stage!='done') as openTasks,
+           (SELECT COUNT(*) FROM tasks t JOIN task_assignees a ON a.task_id=t.id WHERE a.user_id=u.id AND t.stage='done') as doneTasks
+    FROM team_members tm
+    JOIN users u ON u.id=tm.user_id
+    WHERE tm.team_id=? AND u.disabled=0
+    ORDER BY CASE tm.role WHEN 'Ketua Tim' THEN 1 WHEN 'Project Manager' THEN 2 WHEN 'Member' THEN 3 ELSE 4 END, tm.joined_at ASC
+  `, tid).map(m => ({
+    id: m.id, name: m.name, username: m.username || '', avatar: m.avatar || '', email: m.email,
+    div: m.div, loc: m.loc, address: m.address || '', birthPlace: m.birth_place || '',
+    birthDate: m.share_birthday ? m.birth_date : null, shareBirthday: !!m.share_birthday,
+    role: m.role, on: online(m.id), admin: !!m.is_admin,
+    openTasks: m.openTasks || 0, doneTasks: m.doneTasks || 0
+  }));
+  res.json({ team, myRole: myMem ? myMem.role : (req.user.is_admin ? 'Ketua Tim' : 'Viewer'), members });
+});
+
+app.post('/api/teams/:id/members', (req, res) => {
+  const tid = int(req.params.id);
+  const myMem = one('SELECT role FROM team_members WHERE team_id=? AND user_id=?', tid, req.user.id);
+  if (!req.user.is_admin && (!myMem || myMem.role !== 'Ketua Tim')) throw E(403, 'Hanya Ketua Tim atau Admin yang dapat menambahkan anggota ke tim ini');
+  const userId = int(req.body?.userId);
+  const target = one('SELECT * FROM users WHERE id=?', userId);
+  if (!target) throw E(404, 'Pengguna tidak ditemukan');
+  const role = en(req.body?.role || 'Member', ['Ketua Tim', 'Project Manager', 'Member', 'Viewer']);
+  run('INSERT OR REPLACE INTO team_members(team_id, user_id, role, joined_at) VALUES(?,?,?,?)', tid, target.id, role, now());
+  broadcast({ type: 'data' });
+  res.status(201).json({ ok: true, role });
+});
+
+app.patch('/api/teams/:id/members/:userId/role', (req, res) => {
+  const tid = int(req.params.id);
+  const myMem = one('SELECT role FROM team_members WHERE team_id=? AND user_id=?', tid, req.user.id);
+  if (!req.user.is_admin && (!myMem || myMem.role !== 'Ketua Tim')) throw E(403, 'Hanya Ketua Tim atau Admin yang dapat menetapkan role anggota');
+  const targetId = int(req.params.userId);
+  const target = one('SELECT * FROM users WHERE id=?', targetId);
+  if (!target) throw E(404, 'Anggota tim tidak ditemukan');
+  const role = en(req.body?.role, ['Ketua Tim', 'Project Manager', 'Member', 'Viewer']);
+  run('UPDATE team_members SET role=? WHERE team_id=? AND user_id=?', role, tid, target.id);
+  activity(req.user.id, null, `${req.user.name} menetapkan peran ${target.name} sebagai ${role} di tim`);
+  broadcast({ type: 'data' });
+  res.json({ ok: true, role });
+});
+
+app.delete('/api/teams/:id/members/:userId', (req, res) => {
+  const tid = int(req.params.id);
+  const targetId = int(req.params.userId);
+  const myMem = one('SELECT role FROM team_members WHERE team_id=? AND user_id=?', tid, req.user.id);
+  const isSelf = targetId === req.user.id;
+  if (!isSelf && !req.user.is_admin && (!myMem || myMem.role !== 'Ketua Tim')) {
+    throw E(403, 'Hanya Ketua Tim atau Admin yang dapat mengeluarkan anggota');
+  }
+  if (myMem?.role === 'Ketua Tim' && targetId === req.user.id) {
+    const kc = one("SELECT COUNT(*) as c FROM team_members WHERE team_id=? AND role='Ketua Tim'", tid).c;
+    if (kc <= 1) throw E(400, 'Kamu adalah satu-satunya Ketua Tim. Tunjuk Ketua Tim lain sebelum keluar.');
+  }
+  run('DELETE FROM team_members WHERE team_id=? AND user_id=?', tid, targetId);
+  broadcast({ type: 'data' });
+  res.json({ ok: true });
+});
+
 app.patch('/api/team/members/:id/role', (req, res) => {
   const isLead = req.user.is_admin || req.user.team_role === 'Ketua Tim';
   if (!isLead) throw E(403, 'Hanya Ketua Tim atau Admin yang dapat menetapkan role anggota');
@@ -299,6 +576,9 @@ app.patch('/api/team/members/:id/role', (req, res) => {
   const role = en(req.body?.role, ['Ketua Tim', 'Project Manager', 'Member', 'Viewer']);
   const makeAdmin = role === 'Ketua Tim' ? 1 : (target.is_admin && role !== 'Ketua Tim' && targetId !== req.user.id ? 0 : target.is_admin);
   run('UPDATE users SET team_role=?, role=?, is_admin=? WHERE id=?', role, role, makeAdmin, target.id);
+  // Also update default team
+  const defTeam = one('SELECT id FROM teams ORDER BY id ASC LIMIT 1');
+  if (defTeam) run('UPDATE team_members SET role=? WHERE team_id=? AND user_id=?', role, defTeam.id, target.id);
   activity(req.user.id, null, `${req.user.name} menetapkan peran ${target.name} sebagai ${role}`);
   broadcast({ type: 'data' });
   res.json({ ok: true, role });
@@ -307,17 +587,22 @@ app.patch('/api/team/members/:id/role', (req, res) => {
 app.post('/api/team/invite', async (req, res) => {
   const email = s(req.body?.email || '', 100).toLowerCase();
   if (!EMAIL.test(email)) throw E(400, 'Format email tidak valid');
-  const ex = one('SELECT id, name, email_verified FROM users WHERE email=?', email);
-  if (ex && ex.email_verified) throw E(409, 'Email ini sudah terdaftar sebagai anggota tim');
-  const link = `${APP_URL}/?tab=register&email=${encodeURIComponent(email)}`;
+  const tid = req.body?.teamId ? int(req.body.teamId) : null;
+  const team = tid ? one('SELECT * FROM teams WHERE id=?', tid) : one('SELECT * FROM teams ORDER BY id ASC LIMIT 1');
+  const teamName = team ? team.name : 'LUKI MANAGEMENT';
+  const link = `${APP_URL}/?tab=register&email=${encodeURIComponent(email)}${team ? `&teamId=${team.id}` : ''}`;
   let sent = false;
   try {
-    sent = await mail.sendInvite(email, req.user.name, link);
+    sent = await mail.sendInvite(email, req.user.name, link, teamName);
   } catch (e) {
     console.error('[mail:invite]', e.message);
   }
-  activity(req.user.id, null, `${req.user.name} mengirim undangan tim ke ${email}`);
-  res.json({ ok: true, sent, link });
+  const ex = one('SELECT id FROM users WHERE email=?', email);
+  if (ex && team) {
+    run("INSERT OR IGNORE INTO team_members(team_id, user_id, role, joined_at) VALUES(?,?, 'Member', ?)", team.id, ex.id, now());
+  }
+  activity(req.user.id, null, `${req.user.name} mengundang ${email} ke ${teamName}`);
+  res.json({ ok: true, sent, link, teamName });
 });
 
 /* ---------- chat ---------- */
