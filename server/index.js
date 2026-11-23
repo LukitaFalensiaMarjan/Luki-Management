@@ -125,9 +125,18 @@ app.post('/api/auth/register', async (req, res) => {
   const hash = await hashPw(pw);
   const isFirst = firstUser();
   const teamRole = isFirst ? 'Ketua Tim' : 'Member';
+  const autoVerify = isFirst || !mail.enabled();
   // Unverified registration can be re-done: only the inbox owner can ever activate it.
-  const id = ex ? (run('UPDATE users SET name=?,username=?,pass_hash=?,role=?,division=?,team_role=?,invite_team_id=? WHERE id=?', name, un, hash, teamRole, div, teamRole, inviteTeamId, ex.id), ex.id)
-    : run('INSERT INTO users(name,username,email,pass_hash,role,division,team_role,invite_team_id,created_at,email_verified,is_admin) VALUES(?,?,?,?,?,?,?,?,?,0,?)', name, un, email, hash, teamRole, div, teamRole, inviteTeamId, now(), isFirst ? 1 : 0).lastInsertRowid;
+  const id = ex ? (run('UPDATE users SET name=?,username=?,pass_hash=?,role=?,division=?,team_role=?,invite_team_id=?,email_verified=? WHERE id=?', name, un, hash, teamRole, div, teamRole, inviteTeamId, autoVerify ? 1 : (ex.email_verified || 0), ex.id), ex.id)
+    : run('INSERT INTO users(name,username,email,pass_hash,role,division,team_role,invite_team_id,created_at,email_verified,is_admin) VALUES(?,?,?,?,?,?,?,?,?,?,?)', name, un, email, hash, teamRole, div, teamRole, inviteTeamId, now(), autoVerify ? 1 : 0, isFirst ? 1 : 0).lastInsertRowid;
+
+  if (autoVerify) {
+    const u = one('SELECT * FROM users WHERE id=?', id);
+    ensureUserTeam(u, inviteCode);
+    startSession(res, id);
+    return res.status(201).json({ ok: true, user: meUser(u) });
+  }
+
   const sent = await sendVerify({ id, email, name });
   res.status(201).json({ verify: true, email, sent });
 });
@@ -187,7 +196,14 @@ app.post('/api/auth/login', async (req, res) => {
   const ok = u && u.pass_hash ? await verifyPw(pw, u.pass_hash) : (await verifyPw(pw, await DUMMY), false);
   if (!ok) throw E(401, u && !u.pass_hash ? 'Akun ini terdaftar lewat Google. Gunakan tombol "Lanjut dengan Google".' : 'Email atau password salah');
   if (u.disabled) throw E(403, 'Akun kamu dinonaktifkan admin');
-  if (!u.email_verified) throw E(403, 'Email belum diverifikasi. Cek inbox (atau folder spam) kamu.', 'unverified');
+  if (!u.email_verified) {
+    if (!mail.enabled()) {
+      run('UPDATE users SET email_verified=1 WHERE id=?', u.id);
+      u.email_verified = 1;
+    } else {
+      throw E(403, 'Email belum diverifikasi. Cek inbox (atau folder spam) kamu.', 'unverified');
+    }
+  }
   tries.delete('login' + req.ip + email); run('UPDATE users SET last_login=? WHERE id=?', now(), u.id);
   startSession(res, u.id); res.json({ ok: true });
 });
