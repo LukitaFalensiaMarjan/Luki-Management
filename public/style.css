@@ -843,7 +843,9 @@ label.fl small{font-weight:500}
 .team-select-wrap{display:flex;align-items:center;gap:10px}
 .team-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px;border-radius:18px;background:#ffffff;border:2px solid #0f172a;box-shadow:3.5px 3.5px 0 #0f172a;margin-bottom:20px;flex-wrap:wrap}
 .team-hero-info{display:flex;align-items:center;gap:16px}
-.team-logo{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;font-size:28px;background:var(--ac-soft);border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a;flex-shrink:0}
+.team-logo{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;font-size:28px;background:var(--ac-soft);border:2px solid #0f172a;box-shadow:2px 2px 0 #0f172a;flex-shrink:0;overflow:hidden}
+.team-logo.sm{width:46px;height:46px;font-size:18px;border-radius:12px}
+.team-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .team-hero-t h2{margin:0 0 4px;font-size:20px}
 .team-hero-t p{margin:0;color:var(--mut);font-size:13px}
 .team-hero-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

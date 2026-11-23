@@ -85,6 +85,17 @@ const AVATAR_PRESETS = [
   ['preset:amber', 'AM', 'Amber'], ['preset:rose', 'RS', 'Rose'], ['preset:violet', 'VT', 'Violet'], ['preset:cyan', 'CN', 'Cyan'],
   ['preset:orange', 'OG', 'Orange'], ['preset:slate', 'SL', 'Slate'], ['preset:navy', 'NV', 'Navy'], ['preset:coral', 'CR', 'Coral']
 ];
+const teamLogoHtml = (logo, name) => {
+  if (logo && (logo.startsWith('data:image/') || logo.startsWith('http') || logo.startsWith('/'))) {
+    return `<img src="${logo}" alt="${esc(name || 'Tim')}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block">`;
+  }
+  if (logo && logo.startsWith('preset:')) {
+    const p = AVATAR_PRESETS.find(x => x[0] === logo);
+    return p ? p[1] : 'TM';
+  }
+  if (logo && logo.trim()) return esc(logo.trim());
+  return esc(name ? ini(name) : 'TM');
+};
 const DIVISIONS = [
   'Engineering & IT', 'Product & UI/UX', 'Marketing & Komunikasi', 'Sales & Business Dev',
   'Keuangan & Akuntansi', 'Human Resources (HR)', 'Operasional & Logistik', 'Customer Support',
@@ -273,7 +284,7 @@ function vDash() {
   const days = Array.from({ length: 7 }, (_, i) => off(i - 6)), cnt = days.map(d => (S?.tasks || []).filter(t => t.completedAt && iso(new Date(t.completedAt)) === d).length), mx = Math.max(1, ...cnt);
   const bars = days.map((d, i) => { const r = cnt[i] / mx; return `<div class="bar"><em ${cnt[i] === mx && mx > 1 ? 'class="show"' : ''}>${cnt[i]}</em><i class="${cnt[i] && r >= .75 ? 'b-hi' : cnt[i] && r >= .4 ? 'b-md' : 'b-lo'}" style="height:${Math.max(10, r * 100)}%"></i><span>${DOW[parse(d).getDay()][0]}</span></div>`; }).join('');
   const curTeam = S.teams?.find(t => t.id === activeTeamId) || S.teams?.[0];
-  const curTeamMems = curTeam && teamMembersCache[curTeam.id] ? teamMembersCache[curTeam.id] : (S.members || []);
+  const curTeamMems = curTeam && Array.isArray(teamMembersCache[curTeam.id]) ? teamMembersCache[curTeam.id] : (S.members || []);
   const team = curTeamMems.filter(m => hasQ(m.name)).slice(0, 4).map(m => {
     const o = openTasks(m.id).sort((a, b) => b.prog - a.prog)[0], t = o || (S?.tasks || []).filter(t => Array.isArray(t.who) && t.who.includes(m.id))[0];
     const st = !t ? 'Pending' : t.stage === 'done' ? 'Completed' : t.stage === 'todo' ? 'Pending' : 'InProgress';
@@ -324,7 +335,7 @@ function vTeam() {
   if (teamViewMode === 'hub') {
     const teamCards = teams.map(t => {
       const isLead = (t.myRole || 'Member') === 'Ketua Tim';
-      const logoP = t.logo?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === t.logo)?.[1] || 'TM') : (t.logo ? `<img src="${t.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : (t.name ? ini(t.name) : 'TM'));
+      const logoP = teamLogoHtml(t.logo, t.name);
       const roleCls = isLead ? 'role-lead' : 'role-member';
 
       return `
@@ -378,15 +389,16 @@ function vTeam() {
   const isLead = myRoleInTeam === 'Ketua Tim';
 
   const teamOpts = teams.map(t => `<option value="${t.id}" ${t.id === curTeam.id ? 'selected' : ''}>${esc(t.name)} (${esc(t.myRole || 'Member')})</option>`).join('');
-  const logoP = curTeam.logo?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === curTeam.logo)?.[1] || 'TM') : (curTeam.logo ? `<img src="${curTeam.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : (curTeam.name ? ini(curTeam.name) : 'TM'));
+  const logoP = teamLogoHtml(curTeam.logo, curTeam.name);
 
   if (!teamMembersCache[curTeam.id]) {
-    api('GET', `/api/teams/${curTeam.id}/members`).then(list => {
+    api('GET', `/api/teams/${curTeam.id}/members`).then(res => {
+      const list = Array.isArray(res) ? res : (res?.members || []);
       teamMembersCache[curTeam.id] = list;
       if (cur === 'team' && teamViewMode === 'detail') paint(false);
     }).catch(() => {});
   }
-  const curMembers = teamMembersCache[curTeam.id] || (S.members || []);
+  const curMembers = Array.isArray(teamMembersCache[curTeam.id]) ? teamMembersCache[curTeam.id] : (S.members || []);
   const ms = curMembers.filter(m => (TD === 'All' || m.div === TD) && hasQ((m.name + ' ' + (m.username || '') + ' ' + (m.teamRole || m.role)).toLowerCase()));
   const cards = ms.map((m, i) => {
     const o = typeof m.openTasks === 'number' ? m.openTasks : openTasks(m.id).length;
@@ -1676,7 +1688,16 @@ const ACT = {
       <p class="mut" style="font-size:12.5px;margin-bottom:12px">Buat ruang kerja tim baru. Kamu akan otomatis menjadi <b>Ketua Tim</b> di tim ini.</p>
       ${field('Nama Tim', '<input class="in" name="name" required maxlength="60" placeholder="Contoh: Digital Marketing, DevOps Core">', 1)}
       <div class="field">
-        <label class="lab">Pilih Monogram / Inisial Logo Tim</label>
+        <label class="lab">Foto / Logo Profil Tim</label>
+        <div style="display:flex;align-items:center;gap:14px;margin:8px 0 12px">
+          <div id="tLogoPrev" class="team-logo sm" style="width:52px;height:52px;font-size:18px;border-radius:14px;overflow:hidden">TM</div>
+          <div>
+            <input type="file" id="tLogoFile" accept="image/*" style="display:none">
+            <button type="button" class="btn sm" data-act="trigger-tlogo-file">${ic('upload')} Unggah Foto Logo</button>
+            <p class="mut" style="font-size:11.5px;margin-top:4px">PNG, JPG atau WEBP (otomatis disesuaikan)</p>
+          </div>
+        </div>
+        <label class="lab" style="margin-top:6px">Atau Pilih Monogram</label>
         <input type="hidden" name="logo" id="newTeamLogoIn" value="TM">
         <div class="team-logo-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
           ${presets.map(p => `<button type="button" class="av-pbtn ${p === 'TM' ? 'on' : ''}" data-act="pick-tlogo" data-val="${p}">${p}</button>`).join('')}
@@ -1704,11 +1725,14 @@ const ACT = {
       }
     });
   },
+  'trigger-tlogo-file': () => { $('#tLogoFile')?.click(); },
   'pick-tlogo': b => {
     $$('.team-logo-picker button').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
     const inp = $('#newTeamLogoIn');
     if (inp) inp.value = b.dataset.val;
+    const prev = $('#tLogoPrev');
+    if (prev) prev.textContent = b.dataset.val;
   },
   'edit-team': b => {
     const tid = +b.dataset.id;
@@ -1719,7 +1743,16 @@ const ACT = {
     form(`${modalHead('Edit Informasi Tim')}<form class="f">
       ${field('Nama Tim', `<input class="in" name="name" required maxlength="60" value="${esc(t.name)}">`, 1)}
       <div class="field">
-        <label class="lab">Pilih Monogram / Inisial Logo Tim</label>
+        <label class="lab">Foto / Logo Profil Tim</label>
+        <div style="display:flex;align-items:center;gap:14px;margin:8px 0 12px">
+          <div id="tLogoPrev" class="team-logo sm" style="width:52px;height:52px;font-size:18px;border-radius:14px;overflow:hidden">${teamLogoHtml(curLogo, t.name)}</div>
+          <div>
+            <input type="file" id="tLogoFile" accept="image/*" style="display:none">
+            <button type="button" class="btn sm" data-act="trigger-tlogo-file">${ic('upload')} Unggah Foto Logo</button>
+            <p class="mut" style="font-size:11.5px;margin-top:4px">PNG, JPG atau WEBP (otomatis disesuaikan)</p>
+          </div>
+        </div>
+        <label class="lab" style="margin-top:6px">Atau Pilih Monogram</label>
         <input type="hidden" name="logo" id="newTeamLogoIn" value="${esc(curLogo)}">
         <div class="team-logo-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
           ${presets.map(p => `<button type="button" class="av-pbtn ${p === curLogo ? 'on' : ''}" data-act="pick-tlogo" data-val="${p}">${p}</button>`).join('')}
@@ -2265,7 +2298,33 @@ document.addEventListener('change', async e => {
     };
     reader.readAsDataURL(f);
   }
-  if (e.target.type === 'file' && e.target.id !== 'avFile') {
+  if (e.target.id === 'tLogoFile') {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return toast('Pilih file gambar (PNG, JPG, dll.)');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const cvs = document.createElement('canvas');
+        cvs.width = cvs.height = 128;
+        const ctx = cvs.getContext('2d');
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2, sy = (img.height - minDim) / 2;
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, 128, 128);
+        const dataUrl = cvs.toDataURL('image/jpeg', 0.85);
+        const inp = $('#newTeamLogoIn');
+        if (inp) inp.value = dataUrl;
+        const prev = $('#tLogoPrev');
+        if (prev) prev.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block">`;
+        $$('.team-logo-picker button').forEach(x => x.classList.remove('on'));
+        toast('Foto logo tim berhasil dipilih');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  }
+  if (e.target.type === 'file' && e.target.id !== 'avFile' && e.target.id !== 'tLogoFile') {
     const s = $('#fn'); if (s) s.textContent = e.target.files[0]?.name || 'Pilih file .csv';
   }
   if (e.target.dataset.actChange === 'tt-proj') { TT.pid = +e.target.value; ttSave(); }

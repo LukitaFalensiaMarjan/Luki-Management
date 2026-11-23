@@ -37,12 +37,19 @@ async function handle(m) {
   if (!m?.text || m.chat?.type !== 'private') return;
   const chat = String(m.chat.id), [raw, arg] = m.text.trim().split(/\s+/), cmd = raw.split('@')[0].toLowerCase();
   if (cmd === '/start') {
-    const u = arg && one('SELECT id,name FROM users WHERE tg_code=? AND tg_code_exp>?', arg, now());
-    if (!u) return sendText(chat, 'Halo! Buka LUKI MANAGEMENT → Settings → Notifications → Connect Telegram, lalu tekan tombol yang muncul untuk menghubungkan akunmu.');
-    run('UPDATE users SET tg_chat_id=NULL WHERE tg_chat_id=?', chat);
-    run('UPDATE users SET tg_chat_id=?,tg_code=NULL,tg_code_exp=NULL WHERE id=?', chat, u.id);
-    core.pushUser(u.id, { type: 'tg', linked: true });
-    return sendText(chat, `Terhubung sebagai ${u.name}. Kamu akan menerima pengingat deadline H-7, H-3, H-2 dan H-1.\n\nPerintah: /deadline, /stop`);
+    if (arg) {
+      const u = one('SELECT id,name FROM users WHERE tg_code=? AND tg_code_exp>?', arg, now());
+      if (!u) return sendText(chat, 'Kode tautan Telegram tidak valid atau sudah kedaluwarsa. Silakan buka Settings → Notifications → Hubungkan Telegram di web LUKI MANAGEMENT.');
+      run('UPDATE users SET tg_chat_id=NULL WHERE tg_chat_id=?', chat);
+      run('UPDATE users SET tg_chat_id=?,tg_code=NULL,tg_code_exp=NULL WHERE id=?', chat, u.id);
+      core.pushUser(u.id, { type: 'tg', linked: true });
+      return sendText(chat, `Terhubung sebagai ${u.name}. Kamu akan menerima pengingat deadline H-7, H-3, H-2 dan H-1.\n\nPerintah:\n/deadline — deadline 14 hari ke depan\n/catat <nominal> <keterangan> — catat pengeluaran\n/masuk <nominal> <keterangan> — catat pemasukan\n/stop — putuskan notifikasi`);
+    }
+    const linked = one('SELECT id,name FROM users WHERE tg_chat_id=? OR CAST(tg_chat_id AS TEXT)=? OR tg_chat_id=?', chat, chat, Number(m.chat.id) || 0);
+    if (linked) {
+      return sendText(chat, `Halo ${linked.name}! Akunmu sudah terhubung dengan LUKI MANAGEMENT.\n\nPerintah:\n/deadline — deadline 14 hari ke depan\n/catat <nominal> <keterangan> — catat pengeluaran\n/masuk <nominal> <keterangan> — catat pemasukan\n/stop — putuskan notifikasi`);
+    }
+    return sendText(chat, 'Halo! Buka LUKI MANAGEMENT → Settings → Notifications → Connect Telegram, lalu tekan tombol yang muncul untuk menghubungkan akunmu.');
   }
   const u = one('SELECT id,name FROM users WHERE tg_chat_id=? OR CAST(tg_chat_id AS TEXT)=? OR tg_chat_id=?', chat, chat, Number(m.chat.id) || 0);
   if (!u) return sendText(chat, 'Akun belum terhubung. Buka LUKI MANAGEMENT → Settings → Notifications → Connect Telegram untuk menghubungkan akunmu.');
@@ -50,10 +57,10 @@ async function handle(m) {
   if (cmd === '/deadline') return sendText(chat, deadlines(u.id));
   if (cmd === '/catat' || cmd === '/masuk') {
     // "/catat 25000 makan siang" -> expense, "/masuk 5000000 gaji" -> income
-    const x = m.text.trim().match(/^\/\w+(?:@\w+)?\s+([\d.,]+)\s+([\s\S]{1,120})$/);
+    const x = m.text.trim().match(/^\/\w+(?:@\w+)?\s+([\d.,]+)(?:\s+([\s\S]{1,120}))?$/);
     const amount = x && Number(x[1].replace(/[.,](?=\d{3}(\D|$))/g, '').replace(',', '.'));
     if (!x || !(amount > 0 && amount <= 1e13)) return sendText(chat, `Format: ${cmd} <nominal> <keterangan>\nContoh: ${cmd} 25000 ${cmd === '/catat' ? 'makan siang' : 'gaji bulan ini'}`);
-    const inc = cmd === '/masuk', d = new Date(), date = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10), title = x[2].trim();
+    const inc = cmd === '/masuk', d = new Date(), date = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10), title = ((x[2] || '').trim() || (inc ? 'Pemasukan' : 'Pengeluaran'));
     run('INSERT INTO personal(user_id,kind,title,status,amount,category,date,created_at) VALUES(?,?,?,?,?,?,?,?)', u.id, 'tx', title, inc ? 'income' : 'expense', amount, 'Lainnya', date, now());
     core.pushUser(u.id, { type: 'personal' });
     return sendText(chat, `${inc ? 'Pemasukan' : 'Pengeluaran'} dicatat: Rp${Math.round(amount).toLocaleString('id-ID')} — ${title}`);
