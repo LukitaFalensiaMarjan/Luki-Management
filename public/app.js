@@ -242,8 +242,10 @@ function closePop() { popEl?.remove(); popEl = null; }
 function pop(anchor, html, cls = '') {
   closePop(); popEl = document.createElement('div'); popEl.className = 'pop ' + cls; popEl.innerHTML = html; document.body.appendChild(popEl);
   const r = anchor.getBoundingClientRect(), w = popEl.offsetWidth, h = popEl.offsetHeight;
-  popEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.right - w)) + 'px';
-  popEl.style.top = (r.bottom + 6 + h > innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  const vW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  popEl.style.left = Math.max(8, Math.min(vW - w - 8, r.right - w)) + 'px';
+  popEl.style.top = (r.bottom + 6 + h > vH ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
 }
 const field = (label, inner, w) => `<label class="fl ${w ? 'w' : ''}">${label}${inner}</label>`;
 const modalHead = t => `<div class="mh"><h3>${t}</h3><button class="x" type="button" data-act="close" aria-label="Tutup">${ic('x')}</button></div>`;

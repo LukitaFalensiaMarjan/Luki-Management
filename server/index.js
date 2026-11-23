@@ -1082,5 +1082,17 @@ app.listen(PORT, HOST, () => {
   if (!mail.enabled()) console.log('[mail] SMTP belum diatur: link verifikasi akan dicetak di console ini.');
   if (!GID) console.log('[google] GOOGLE_CLIENT_ID kosong: login Google nonaktif.');
   tg.start(); reminders.start();
+  // Keep-alive: Self-ping public URL every 10 minutes to prevent sleep on free cloud platforms (Render, etc.)
+  if (APP_URL && APP_URL.startsWith('http') && !APP_URL.includes('localhost')) {
+    const pingUrl = `${APP_URL}/api/health`;
+    setInterval(async () => {
+      try {
+        const r = await fetch(pingUrl, { signal: AbortSignal.timeout(10000) });
+        if (r.ok) console.log('[keep-alive] ping health check berhasil');
+      } catch (e) {
+        // network or sleeping; ignore
+      }
+    }, 10 * 60 * 1000).unref();
+  }
 });
 module.exports = { app };

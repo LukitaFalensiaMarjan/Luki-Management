@@ -3,7 +3,7 @@
  * LUKI MANAGEMENT - Service Worker for PWA
  * Caches core app shell while keeping all /api/ traffic strictly live.
  */
-const CACHE_NAME = 'luki-cache-v4';
+const CACHE_NAME = 'luki-cache-v5';
 const APP_SHELL = [
   '/',
   '/style.css',
