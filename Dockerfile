@@ -15,13 +15,14 @@ RUN mkdir -p /app/data && chown -R node:node /app
 
 USER node
 
-EXPOSE 3000
+EXPOSE 7860
 
 ENV NODE_ENV=production \
-    PORT=3000 \
-    HOST=0.0.0.0
+    PORT=7860 \
+    HOST=0.0.0.0 \
+    TRUST_PROXY=1
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:7860/api/health || exit 1
 
 CMD ["node", "--disable-warning=ExperimentalWarning", "server/index.js"]

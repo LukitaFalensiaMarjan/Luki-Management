@@ -1,3 +1,13 @@
+---
+title: Luki Management
+emoji: 📋
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # LUKI MANAGEMENT
 
 Kelola kerja tim (project, kanban, kalender, analitik, chat, laporan PDF) dan kehidupan pribadi (keuangan, catatan, tugas, wishlist, travel) dalam satu aplikasi web, dengan pengingat via Telegram.
