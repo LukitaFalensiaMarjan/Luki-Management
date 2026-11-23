@@ -103,7 +103,7 @@ const av = (m, c = '') => {
   return `<span class="av ${c}" style="--h:${hue(m.id)}" title="${esc(m.name)}">${esc(ini(m.name))}</span>`;
 };
 const ph = n => (n.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 7) % 360;
-const openTasks = id => S.tasks.filter(t => t.stage !== 'done' && t.who.includes(id));
+const openTasks = id => (S?.tasks || []).filter(t => t.stage !== 'done' && Array.isArray(t.who) && t.who.includes(id));
 const STAGES = [['todo', 'To do'], ['progress', 'In progress'], ['review', 'In review'], ['done', 'Done']];
 const PROG = { todo: 0, progress: 50, review: 90, done: 100 };
 const allEvents = () => [...S.events.map(e => ({ ...e, own: true })),
@@ -270,12 +270,12 @@ function vDash() {
   const stat = (k, t, v, sub, on) => `<div class="card stat ${on ? 'on' : ''}"><span class="go">${ic('arrow')}</span><h4>${t}</h4><div class="n">${num(k, v)}</div><small>${sub}</small></div>`;
   const list = P.filter(p => hasQ(p.name)).slice(-6).reverse();
   const nxt = allEvents().filter(e => e.date >= off(0) && hasQ(e.title.toLowerCase())).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
-  const days = Array.from({ length: 7 }, (_, i) => off(i - 6)), cnt = days.map(d => S.tasks.filter(t => t.completedAt && iso(new Date(t.completedAt)) === d).length), mx = Math.max(1, ...cnt);
+  const days = Array.from({ length: 7 }, (_, i) => off(i - 6)), cnt = days.map(d => (S?.tasks || []).filter(t => t.completedAt && iso(new Date(t.completedAt)) === d).length), mx = Math.max(1, ...cnt);
   const bars = days.map((d, i) => { const r = cnt[i] / mx; return `<div class="bar"><em ${cnt[i] === mx && mx > 1 ? 'class="show"' : ''}>${cnt[i]}</em><i class="${cnt[i] && r >= .75 ? 'b-hi' : cnt[i] && r >= .4 ? 'b-md' : 'b-lo'}" style="height:${Math.max(10, r * 100)}%"></i><span>${DOW[parse(d).getDay()][0]}</span></div>`; }).join('');
   const curTeam = S.teams?.find(t => t.id === activeTeamId) || S.teams?.[0];
-  const curTeamMems = curTeam && teamMembersCache[curTeam.id] ? teamMembersCache[curTeam.id] : S.members;
+  const curTeamMems = curTeam && teamMembersCache[curTeam.id] ? teamMembersCache[curTeam.id] : (S.members || []);
   const team = curTeamMems.filter(m => hasQ(m.name)).slice(0, 4).map(m => {
-    const o = openTasks(m.id).sort((a, b) => b.prog - a.prog)[0], t = o || S.tasks.filter(t => t.who.includes(m.id))[0];
+    const o = openTasks(m.id).sort((a, b) => b.prog - a.prog)[0], t = o || (S?.tasks || []).filter(t => Array.isArray(t.who) && t.who.includes(m.id))[0];
     const st = !t ? 'Pending' : t.stage === 'done' ? 'Completed' : t.stage === 'todo' ? 'Pending' : 'InProgress';
     return `<div class="crow">${av(m)}<div><b>${esc(m.name)}</b><small>Working on ${esc(t ? t.title : '—')}</small></div><span class="pill s-${st}">${st === 'InProgress' ? 'In Progress' : st}</span></div>`;
   }).join('') || '<p class="mut">Tidak ada hasil.</p>';
@@ -314,9 +314,64 @@ function vTasks() {
 
 let activeTeamId = null;
 let teamMembersCache = {};
+let teamViewMode = 'hub';
+
 function vTeam() {
   const me = S.me.id;
-  const teams = S.teams && S.teams.length ? S.teams : [{ id: 1, name: 'Luki Core Team', logo: 'preset:lion', description: 'Tim Utama Luki Management', myRole: 'Ketua Tim', memberCount: S.members.length }];
+  const teams = S.teams && S.teams.length ? S.teams : [{ id: 1, name: 'Luki Core Team', logo: 'preset:lion', description: 'Tim Utama Luki Management', myRole: 'Ketua Tim', memberCount: (S.members || []).length, code: 'LK-DEMO1' }];
+
+  // 1. TAMPILAN HUB: DAFTAR SEMUA TIM
+  if (teamViewMode === 'hub') {
+    const teamCards = teams.map(t => {
+      const isLead = (t.myRole || 'Member') === 'Ketua Tim';
+      const logoP = t.logo?.startsWith('preset:') ? (AVATAR_PRESETS.find(x => x[0] === t.logo)?.[1] || 'TM') : (t.logo ? `<img src="${t.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : (t.name ? ini(t.name) : 'TM'));
+      const roleCls = isLead ? 'role-lead' : 'role-member';
+
+      return `
+        <div class="card team-hub-card" style="display:flex;flex-direction:column;justify-content:space-between;padding:18px 20px;min-height:220px;position:relative">
+          <div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="team-logo sm" style="width:48px;height:48px;font-size:18px">${logoP}</div>
+                <div>
+                  <h3 style="font-size:18px;font-weight:800;margin:0 0 4px;font-family:'Patrick Hand',sans-serif">${esc(t.name)}</h3>
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <span class="role-badge ${roleCls}">${esc(t.myRole || 'Member')}</span>
+                    <span class="pill" style="font-size:11px">${t.memberCount || 1} Anggota</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                ${isLead ? `<button class="ibtn sm" data-act="edit-team" data-id="${t.id}" title="Edit Profil Tim">${ic('edit')}</button>` : ''}
+                ${isLead && teams.length > 1 ? `<button class="ibtn sm danger" data-act="del-team" data-id="${t.id}" title="Hapus Tim" style="color:var(--bad)">${ic('trash')}</button>` : ''}
+              </div>
+            </div>
+            <p class="mut" style="font-size:13px;line-height:1.5;margin-bottom:14px">${esc(t.description || 'Ruang kerja kolaborasi tim.')}</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(15,23,42,.04);border:1.5px dashed #0f172a;border-radius:8px;margin-bottom:12px;font-size:12px">
+              <span>Kode Tim: <b style="font-family:monospace;letter-spacing:1px">${esc(t.code || '—')}</b></span>
+              <button class="ibtn sm" data-act="copy-team-code" data-code="${esc(t.code || '')}" title="Salin Kode Undangan Tim">${ic('copy')}</button>
+            </div>
+            <button class="btn primary w" data-act="enter-team" data-id="${t.id}" style="justify-content:center;font-weight:700">
+              ${ic('arrow')} Buka Ruang Kerja Tim
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return head('Daftar Tim', 'Pilih tim untuk membuka ruang kerja, atau buat tim baru untuk mulai kolaborasi.',
+      `<div class="fa" style="margin:0">
+        <button class="btn" data-act="join-team-modal">${ic('key')} Gabung Tim</button>
+        <button class="btn primary" data-act="new-team">${ic('plus')} Buat Tim Baru</button>
+      </div>`) +
+      `<div class="grid g2" style="margin-top:4px">
+        ${teamCards || '<div class="empty" style="grid-column:1/-1">Belum ada tim. Buat tim baru untuk memulai!</div>'}
+      </div>`;
+  }
+
+  // 2. TAMPILAN DETAIL: RUANG KERJA TIM YANG TELAH DIPILIH
   if (!activeTeamId || !teams.find(t => t.id === activeTeamId)) activeTeamId = teams[0].id;
   const curTeam = teams.find(t => t.id === activeTeamId) || teams[0];
   const myRoleInTeam = curTeam.myRole || 'Member';
@@ -328,14 +383,14 @@ function vTeam() {
   if (!teamMembersCache[curTeam.id]) {
     api('GET', `/api/teams/${curTeam.id}/members`).then(list => {
       teamMembersCache[curTeam.id] = list;
-      if (cur === 'team') paint(false);
+      if (cur === 'team' && teamViewMode === 'detail') paint(false);
     }).catch(() => {});
   }
-  const curMembers = teamMembersCache[curTeam.id] || S.members;
+  const curMembers = teamMembersCache[curTeam.id] || (S.members || []);
   const ms = curMembers.filter(m => (TD === 'All' || m.div === TD) && hasQ((m.name + ' ' + (m.username || '') + ' ' + (m.teamRole || m.role)).toLowerCase()));
   const cards = ms.map((m, i) => {
     const o = typeof m.openTasks === 'number' ? m.openTasks : openTasks(m.id).length;
-    const dn = typeof m.doneTasks === 'number' ? m.doneTasks : S.tasks.filter(t => t.stage === 'done' && t.who.includes(m.id)).length;
+    const dn = typeof m.doneTasks === 'number' ? m.doneTasks : (S?.tasks || []).filter(t => t.stage === 'done' && Array.isArray(t.who) && t.who.includes(m.id)).length;
     const wl = Math.min(95, o * 20), un = S.unread[m.id] || 0;
     const memberRole = m.teamRole || m.role || 'Member';
     const roleCls = { 'Ketua Tim': 'role-lead', 'Project Manager': 'role-pm', 'Member': 'role-member', 'Viewer': 'role-viewer' }[memberRole] || 'role-member';
@@ -360,11 +415,10 @@ function vTeam() {
   }).join('');
 
   const allDivs = ['All', ...new Set(curMembers.map(m => m.div).filter(Boolean))];
-  return head('Team', 'Kelola multi-tim, anggota, peran spesifik tiap tim, dan status online.',
+  return head(curTeam.name, `Ruang kerja tim · ${curTeam.memberCount || curMembers.length} Anggota`,
     `<div class="fa" style="margin:0">
+      <button class="btn" data-act="back-to-team-hub">${ic('chevL')} Kembali ke Semua Tim</button>
       <button class="btn" data-act="team-chat" data-id="${curTeam.id}">${ic('chat')} Diskusi Tim</button>
-      <button class="btn" data-act="join-team-modal">Gabung Tim</button>
-      <button class="btn" data-act="new-team">${ic('plus')} Buat Tim Baru</button>
       <button class="btn primary" data-act="invite-team" data-team="${curTeam.id}">${ic('mail')} Undang ke Tim</button>
     </div>`) +
     `<div class="team-hero">
@@ -391,7 +445,7 @@ function vTeam() {
         ${isLead && teams.length > 1 ? `<button class="btn sm danger" data-act="del-team" data-id="${curTeam.id}">${ic('trash')}</button>` : ''}
       </div>
     </div>
-    <div class="tabs">${allDivs.map(d => `<button class="tab ${TD === d ? 'on' : ''}" data-act="td" data-k="${d}">${d}</button>`).join('')}<span class="cnt">${S.members.filter(m => m.on).length} online now</span></div>
+    <div class="tabs">${allDivs.map(d => `<button class="tab ${TD === d ? 'on' : ''}" data-act="td" data-k="${d}">${d}</button>`).join('')}<span class="cnt">${(S.members || []).filter(m => m.on).length} online now</span></div>
     <div class="tgrid">${cards || '<div class="empty" style="grid-column:1/-1">Tidak ada anggota di divisi ini.</div>'}</div>`;
 }
 
@@ -676,9 +730,14 @@ function post() {
   $$('.gauge-arc').forEach(el => { const to = el.dataset.v; el.style.strokeDasharray = `${PV.g ?? 0} 100`; el.getBoundingClientRect(); el.style.strokeDasharray = `${to} 100`; PV.g = +to; });
   syncTT();
   if (!S) return;
-  $('#badge').textContent = S.tasks.filter(t => t.stage !== 'done').length;
-  const un = Object.values(S.unread).reduce((a, b) => a + b, 0), tb = $('#tbadge'); tb.hidden = !un; tb.textContent = un;
-  $('#dot').classList.toggle('on', S.notifs.some(n => n.unread));
+  $('#badge').textContent = (S.tasks || []).filter(t => t.stage !== 'done').length;
+  const un = Object.values(S.unread || {}).reduce((a, b) => a + b, 0), tb = $('#tbadge');
+  if (tb) {
+    tb.textContent = un;
+    tb.style.display = un > 0 ? 'inline-block' : 'none';
+    tb.hidden = un <= 0;
+  }
+  $('#dot').classList.toggle('on', (S.notifs || []).some(n => n.unread));
   $('#meName').textContent = S.me.name;
   $('#meMail').textContent = S.me.username ? '@' + S.me.username : S.me.email;
   const a = $('#meAv');
@@ -699,10 +758,17 @@ function paint(enter) {
   if (!S) return;
   const k = cur;
   if (LOADERS[k] && !READY[k]) { LOADERS[k]().then(() => { READY[k] = true; if (cur === k) paint(enter); }).catch(e => e.message !== 'auth' && toast(e.message)); return; }
-  const [fn, title, ph2] = ROUTES[cur];
-  document.title = title + ' · LUKI MANAGEMENT'; $('#q').placeholder = ph2;
+  const route = ROUTES[cur];
+  if (!route) return;
+  const [fn, title, ph2] = route;
+  document.title = title + ' · LUKI MANAGEMENT'; $('#q').placeholder = ph2 || '';
   document.documentElement.dataset.accent = S.me.accent || 'ocean';
-  const sy = view.scrollTop; view.innerHTML = fn(); view.className = 'view' + (enter ? ' enter' : ''); view.scrollTop = enter ? 0 : sy; post();
+  try {
+    const sy = view.scrollTop; view.innerHTML = fn(); view.className = 'view' + (enter ? ' enter' : ''); view.scrollTop = enter ? 0 : sy; post();
+  } catch (err) {
+    console.error('[render] Render error on ' + cur + ':', err);
+    view.innerHTML = `<div class="empty" style="padding:40px 20px;text-align:center"><h3>Terjadi kendala saat memuat halaman</h3><p class="mut" style="font-size:13px;margin:8px 0 16px">${esc(err.message)}</p><button class="btn primary" data-act="refresh">${ic('refresh')} Muat Ulang Halaman</button></div>`;
+  }
 }
 async function promptJoinCode(code) {
   if (!code) return;
@@ -743,7 +809,9 @@ function route() {
     promptJoinCode(code);
     return;
   }
-  const r = location.hash.replace(/^#\/?/, '') || 'dashboard'; cur = ROUTES[r] ? r : 'dashboard'; PV = {}; Q = ''; $('#q').value = '';
+  const r = location.hash.replace(/^#\/?/, '') || 'dashboard';
+  if (r === 'team' && cur !== 'team') teamViewMode = 'hub';
+  cur = ROUTES[r] ? r : 'dashboard'; PV = {}; Q = ''; $('#q').value = '';
   const t = ++tok; closePop(); document.body.classList.remove('nav-open');
   view.className = 'view'; view.innerHTML = '<div class="skel"><i></i><i></i><i></i></div>'; post();
   setTimeout(() => { if (t === tok) paint(true); }, reduce ? 0 : 160);
@@ -1628,6 +1696,7 @@ const ACT = {
         toast(`Tim "${name}" berhasil dibuat!`);
         await load();
         activeTeamId = newT.id;
+        teamViewMode = 'detail';
         delete teamMembersCache[activeTeamId];
         paint(false);
       } catch (e) {
@@ -1690,6 +1759,7 @@ const ACT = {
       toast('Tim berhasil dihapus');
       await load();
       activeTeamId = S.teams?.[0]?.id || 1;
+      teamViewMode = 'hub';
       delete teamMembersCache[tid];
       paint(false);
     } catch (e) {
@@ -1805,6 +1875,15 @@ const ACT = {
     const p = S.projects.find(x => x.id === pid);
     if (!p) return;
     openChannelChat('project:' + pid, p.name, 'Diskusi Tim Proyek');
+  },
+  'enter-team': b => {
+    activeTeamId = +b.dataset.id;
+    teamViewMode = 'detail';
+    paint(false);
+  },
+  'back-to-team-hub': () => {
+    teamViewMode = 'hub';
+    paint(false);
   },
   'team-chat': b => {
     const tid = +b.dataset.id;

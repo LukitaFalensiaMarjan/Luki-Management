@@ -44,8 +44,8 @@ async function handle(m) {
     core.pushUser(u.id, { type: 'tg', linked: true });
     return sendText(chat, `Terhubung sebagai ${u.name}. Kamu akan menerima pengingat deadline H-7, H-3, H-2 dan H-1.\n\nPerintah: /deadline, /stop`);
   }
-  const u = one('SELECT id FROM users WHERE tg_chat_id=?', chat);
-  if (!u) return sendText(chat, 'Akun belum terhubung. Gunakan tombol Connect Telegram di LUKI MANAGEMENT.');
+  const u = one('SELECT id,name FROM users WHERE tg_chat_id=? OR CAST(tg_chat_id AS TEXT)=? OR tg_chat_id=?', chat, chat, Number(m.chat.id) || 0);
+  if (!u) return sendText(chat, 'Akun belum terhubung. Buka LUKI MANAGEMENT → Settings → Notifications → Connect Telegram untuk menghubungkan akunmu.');
   if (cmd === '/stop') { run('UPDATE users SET tg_chat_id=NULL WHERE id=?', u.id); core.pushUser(u.id, { type: 'tg', linked: false }); return sendText(chat, 'Notifikasi dimatikan. Hubungkan lagi kapan saja dari Settings.'); }
   if (cmd === '/deadline') return sendText(chat, deadlines(u.id));
   if (cmd === '/catat' || cmd === '/masuk') {
